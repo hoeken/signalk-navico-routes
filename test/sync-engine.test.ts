@@ -4,7 +4,13 @@ import { ResourceStore } from '../src/resource-store';
 import { SyncEngine, SyncEngineConfig } from '../src/sync-engine';
 import { parseUsr } from '../src/usr/codec';
 import { latDegToMm, lonDegToMm } from '../src/usr/mercator';
-import type { Resource, ResourceType, WaypointResource } from '../src/types';
+import type {
+  Position,
+  Resource,
+  ResourceType,
+  RouteResource,
+  WaypointResource,
+} from '../src/types';
 import { buildUsr, synthUuid } from './helpers/build-usr';
 
 const CONFIG: SyncEngineConfig = {
@@ -28,6 +34,13 @@ const WP_B = {
   latMm: latDegToMm(-16.9),
 };
 const ROUTE = { uuid: synthUuid(0xc3), name: 'SAVUSAVU 2 NANAK', legUuids: [WP_A.uuid, WP_B.uuid] };
+// Free-standing waypoint, not a leg of any route.
+const WP_C = {
+  uuid: synthUuid(0xd4),
+  name: 'VUDA',
+  lonMm: lonDegToMm(177.386),
+  latMm: latDegToMm(-17.681),
+};
 
 function makeWaypoint(name: string, lon: number, lat: number): WaypointResource {
   return {
@@ -40,10 +53,21 @@ function makeWaypoint(name: string, lon: number, lat: number): WaypointResource 
   };
 }
 
+function makeRoute(name: string, coordinates: Position[]): RouteResource {
+  return {
+    name,
+    feature: {
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates },
+      properties: {},
+    },
+  };
+}
+
 function harness(configOverrides: Partial<SyncEngineConfig> = {}, cachedUsr?: Buffer) {
   const store = new ResourceStore();
   const idMap = new IdMap();
-  const mfd = { buf: buildUsr({ waypoints: [WP_A, WP_B], routes: [ROUTE] }) };
+  const mfd = { buf: buildUsr({ waypoints: [WP_A, WP_B, WP_C], routes: [ROUTE] }) };
   const cached = { buf: cachedUsr };
   const uploads: Buffer[] = [];
   const deltas: { type: ResourceType; id: string; value: Resource | null }[] = [];
@@ -114,12 +138,50 @@ describe('MFD → SignalK mirror', () => {
     await settle(0);
     await h.engine.flush();
 
-    expect(h.store.ids('waypoints')).toHaveLength(2);
+    // WP_A and WP_B are legs of the route: represented by the route alone.
+    expect(h.store.ids('waypoints')).toHaveLength(1);
     expect(h.store.ids('routes')).toHaveLength(1);
-    expect(h.deltas.filter((d) => d.value !== null)).toHaveLength(3);
+    expect(h.deltas.filter((d) => d.value !== null)).toHaveLength(2);
 
+    expect(Object.values(h.store.list('waypoints'))[0]!.name).toBe('VUDA');
     const route = Object.values(h.store.list('routes'))[0]!;
     expect(route.name).toBe('SAVUSAVU 2 NANAK');
+    expect((route as RouteResource).feature.geometry.coordinates).toHaveLength(2);
+    await h.engine.stop();
+  });
+
+  it('republishes former route legs once the MFD deletes the route', async () => {
+    const h = harness();
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    h.mfd.buf = buildUsr({ waypoints: [WP_A, WP_B, WP_C], routes: [] });
+    await settle(60_000);
+    await h.engine.flush();
+
+    expect(h.store.ids('routes')).toHaveLength(0);
+    const names = Object.values(h.store.list('waypoints')).map((w) => w.name);
+    expect(names.sort()).toEqual(['NANAK', 'SAVUSAVU', 'VUDA']);
+    await h.engine.stop();
+  });
+
+  it('unpublishes a waypoint once the MFD makes it a route leg', async () => {
+    const h = harness();
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+    const id = h.store.ids('waypoints')[0]!;
+
+    h.mfd.buf = buildUsr({
+      waypoints: [WP_A, WP_B, WP_C],
+      routes: [{ ...ROUTE, legUuids: [WP_A.uuid, WP_B.uuid, WP_C.uuid] }],
+    });
+    await settle(60_000);
+    await h.engine.flush();
+
+    expect(h.store.ids('waypoints')).toHaveLength(0);
+    expect(h.deltas.filter((d) => d.value === null).map((d) => d.id)).toContain(id);
     await h.engine.stop();
   });
 
@@ -138,16 +200,15 @@ describe('MFD → SignalK mirror', () => {
 
   it('mirrors edits and deletions from the MFD', async () => {
     const h = harness();
+    h.mfd.buf = buildUsr({ waypoints: [WP_A, WP_C], routes: [] });
     h.engine.start();
     await settle(0);
     await h.engine.flush();
     const wpIds = h.store.ids('waypoints');
+    expect(wpIds).toHaveLength(2);
 
-    // MFD: waypoint A renamed, waypoint B deleted (route now only refs A).
-    h.mfd.buf = buildUsr({
-      waypoints: [{ ...WP_A, name: 'RENAMED' }],
-      routes: [{ ...ROUTE, legUuids: [WP_A.uuid] }],
-    });
+    // MFD: waypoint A renamed, waypoint C deleted.
+    h.mfd.buf = buildUsr({ waypoints: [{ ...WP_A, name: 'RENAMED' }], routes: [] });
     await settle(60_000);
     await h.engine.flush();
 
@@ -169,7 +230,8 @@ describe('MFD → SignalK mirror', () => {
     h.client.download.mockRejectedValueOnce(new Error('ECONNREFUSED'));
     await settle(60_000);
     await h.engine.flush();
-    expect(h.store.ids('waypoints')).toHaveLength(2);
+    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(h.store.ids('routes')).toHaveLength(1);
     expect(h.errors.some((e) => e.includes('ECONNREFUSED'))).toBe(true);
     await h.engine.stop();
   });
@@ -183,13 +245,15 @@ describe('MFD → SignalK mirror', () => {
     h.mfd.buf = Buffer.from('this is not a usr file at all............');
     await settle(60_000);
     await h.engine.flush();
-    expect(h.store.ids('waypoints')).toHaveLength(2);
+    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(h.store.ids('routes')).toHaveLength(1);
 
     // Recovery: valid file again, still consistent.
-    h.mfd.buf = buildUsr({ waypoints: [WP_A], routes: [] });
+    h.mfd.buf = buildUsr({ waypoints: [WP_A, WP_C], routes: [] });
     await settle(60_000);
     await h.engine.flush();
-    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(h.store.ids('waypoints')).toHaveLength(2);
+    expect(h.store.ids('routes')).toHaveLength(0);
     await h.engine.stop();
   });
 });
@@ -208,13 +272,13 @@ describe('startup sync cache', () => {
   });
 
   it('lets the first successful poll correct stale cached content', async () => {
-    // Cache: only waypoint A. MFD: A, B and the route.
+    // Cache: only waypoint A. MFD: A, B, C and the route.
     const h = harness({}, buildUsr({ waypoints: [WP_A], routes: [] }));
     h.engine.start();
     await settle(0);
     await h.engine.flush();
 
-    expect(h.store.ids('waypoints')).toHaveLength(2);
+    expect(Object.values(h.store.list('waypoints')).map((w) => w.name)).toEqual(['VUDA']);
     expect(h.store.ids('routes')).toHaveLength(1);
     await h.engine.stop();
   });
@@ -226,7 +290,8 @@ describe('startup sync cache', () => {
     await h.engine.flush();
 
     expect(h.errors.some((e) => e.includes('sync cache'))).toBe(true);
-    expect(h.store.ids('waypoints')).toHaveLength(2);
+    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(h.store.ids('routes')).toHaveLength(1);
     await h.engine.stop();
   });
 
@@ -259,9 +324,11 @@ describe('SignalK → MFD upload throttle', () => {
     await h.engine.flush();
     expect(h.uploads).toHaveLength(1);
 
+    // Route-leg records (SAVUSAVU, NANAK) are preserved in the file even
+    // though they are not published as SignalK waypoints.
     const uploaded = parseUsr(h.uploads[0]!);
     expect(uploaded.waypoints.map((w) => w.name)).toEqual(
-      expect.arrayContaining(['WP0', 'WP4', 'SAVUSAVU', 'NANAK']),
+      expect.arrayContaining(['WP0', 'WP4', 'VUDA', 'SAVUSAVU', 'NANAK']),
     );
     await h.engine.stop();
   });
@@ -352,9 +419,7 @@ describe('pending-edit protection and confirmation', () => {
     await settle(0);
     await h.engine.flush();
 
-    const id = h.store
-      .ids('waypoints')
-      .find((i) => h.store.get('waypoints', i)!.name === 'SAVUSAVU')!;
+    const id = h.store.ids('waypoints').find((i) => h.store.get('waypoints', i)!.name === 'VUDA')!;
     h.engine.localSet('waypoints', id, makeWaypoint('EDITED', 100, 10));
     expect(h.engine.hasPendingEdits()).toBe(true);
 
@@ -393,25 +458,50 @@ describe('pending-edit protection and confirmation', () => {
     await settle(0);
     await h.engine.flush();
 
-    const id = h.store.ids('waypoints').find((i) => h.store.get('waypoints', i)!.name === 'NANAK')!;
+    const id = h.store.ids('waypoints').find((i) => h.store.get('waypoints', i)!.name === 'VUDA')!;
     h.engine.localDelete('waypoints', id);
     expect(h.store.owns(id)).toBe(false);
 
-    // NANAK is still a leg of the route, so its record cannot leave the
-    // file: the build is record-identical, the upload is skipped, and the
-    // waypoint is demoted to a suppressed (hidden) leg record.
     await settle(10_000);
     await h.engine.flush();
-    expect(h.uploads).toHaveLength(0);
-    expect(h.engine.hasPendingEdits()).toBe(false);
+    expect(h.uploads).toHaveLength(1);
+    expect(parseUsr(h.uploads[0]!).waypoints.map((w) => w.name)).not.toContain('VUDA');
 
-    // It must never be resurrected by subsequent mirrors.
-    await settle(180_000);
+    await settle(5_000); // confirmation poll
     await h.engine.flush();
-    expect(h.store.owns(id)).toBe(false);
-    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(h.engine.hasPendingEdits()).toBe(false);
+    expect(h.store.ids('waypoints')).toHaveLength(0);
     // The route itself is untouched.
     expect(h.store.ids('routes')).toHaveLength(1);
+    await h.engine.stop();
+  });
+
+  it('confirms a pending waypoint edit that lands in the file as a route leg', async () => {
+    const h = harness({ pollIntervalSeconds: 3600 });
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    // A new waypoint and a new route through it, created in the same burst.
+    h.engine.localSet('waypoints', 'wp-new', makeWaypoint('NEW', 11, 22));
+    h.engine.localSet(
+      'routes',
+      'rt-new',
+      makeRoute('NEWRT', [
+        [11, 22],
+        [12, 23],
+      ]),
+    );
+    await settle(10_000);
+    await h.engine.flush();
+    expect(h.uploads).toHaveLength(1);
+
+    await settle(5_000); // confirmation poll
+    await h.engine.flush();
+    expect(h.engine.hasPendingEdits()).toBe(false);
+    // The waypoint became a route leg: no longer a standalone SignalK waypoint.
+    expect(h.store.owns('wp-new')).toBe(false);
+    expect(h.store.owns('rt-new')).toBe(true);
     await h.engine.stop();
   });
 

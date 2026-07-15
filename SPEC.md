@@ -286,12 +286,16 @@ triggers zero watcher-initiated uploads.**
 | `feature.geometry.coordinates` (LineString) | route legs / waypoint refs |
 | `distance`                               | computed, not stored      |
 
-If USR routes reference waypoint records rather than embedding coordinates
-(to be confirmed during §6), the mapper must create the referenced waypoint
-records when serializing a SignalK route, and conversely resolve references
-into a LineString when parsing. Route-leg waypoints that exist only to serve a
-route should not be surfaced as standalone SignalK waypoints if the format lets
-us distinguish them (TBD during reverse engineering; document the outcome).
+USR routes reference waypoint records by uuid rather than embedding
+coordinates (confirmed during §6): the mapper creates the referenced waypoint
+records when serializing a SignalK route, and resolves references into a
+LineString when parsing. **Outcome:** the format has no flag distinguishing
+route-leg waypoints, so the mirror treats *any* waypoint referenced as a leg
+of *any* route as part of that route — it is represented by the route's
+LineString alone and is not published as a standalone SignalK waypoint. Only
+free-standing waypoints (referenced by no route) become SignalK waypoints; a
+waypoint is (re-)published automatically when the last route referencing it
+disappears. Leg records still round-trip byte-losslessly through uploads.
 
 ### Constraints
 

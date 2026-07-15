@@ -2,8 +2,6 @@
 
 - update default times to be a bit longer - 1m might be a bit aggressive.
 
-- is there a way to enable routes by default?
-
 update route object ordering to match resources provider:
 
 {

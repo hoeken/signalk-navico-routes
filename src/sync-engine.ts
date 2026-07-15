@@ -16,6 +16,7 @@
 
 import {
   buildUsrDatabase,
+  canonicalUsrWaypoint,
   canonicalize,
   usrRouteToResource,
   usrWaypointToResource,
@@ -185,9 +186,9 @@ export class SyncEngine {
     }
     try {
       const db = parseUsr(buf);
-      this.mirror(db);
+      const counts = this.mirror(db);
       this.deps.setStatus(
-        `serving ${db.waypoints.length} waypoints, ${db.routes.length} routes from cache; waiting for MFD sync`,
+        `serving ${counts.waypoints} waypoints, ${counts.routes} routes from cache; waiting for MFD sync`,
       );
     } catch (err) {
       this.deps.log.error(`ignoring unparseable sync cache: ${String(err)}`);
@@ -210,9 +211,9 @@ export class SyncEngine {
         this.lastDb = db;
         this.reportReachable();
         await this.saveToCache(buf);
-        this.mirror(db);
+        const counts = this.mirror(db);
         this.deps.setStatus(
-          `synced ${db.waypoints.length} waypoints, ${db.routes.length} routes from MFD`,
+          `synced ${counts.waypoints} waypoints, ${counts.routes} routes from MFD`,
         );
       } catch (err) {
         // Failed or malformed download: keep serving the previous state.
@@ -226,14 +227,26 @@ export class SyncEngine {
     });
   }
 
-  /** Full-mirror semantics: the file is the truth, except pending edits. */
-  private mirror(db: UsrDatabase): void {
+  /**
+   * Full-mirror semantics: the file is the truth, except pending edits.
+   * Returns the number of resources mirrored per type.
+   */
+  private mirror(db: UsrDatabase): { waypoints: number; routes: number } {
     const waypointsByUuid = new Map(db.waypoints.map((w) => [w.uuid, w]));
+    // The MFD builds routes out of waypoint records; SignalK routes carry
+    // their own geometry. A waypoint serving as a route leg is represented
+    // by the route's LineString alone — only free-standing waypoints are
+    // published as SignalK waypoints.
+    const legUuids = new Set<string>(db.routes.flatMap((rt) => rt.legUuids));
+    const counts = { waypoints: 0, routes: 0 };
 
     for (const type of RESOURCE_TYPES) {
       const fileContent = new Map<string, Resource>();
       if (type === 'waypoints') {
         for (const wp of db.waypoints) {
+          if (legUuids.has(wp.uuid)) {
+            continue; // route leg, represented by the route resource
+          }
           if (this.deps.idMap.isSuppressedUuid(wp.uuid)) {
             continue; // synthesized route-leg waypoint, not a standalone resource
           }
@@ -268,6 +281,20 @@ export class SyncEngine {
           if (fileRes && canonicalize(type, fileRes) === edit.canonical) {
             this.pending.delete(k);
             this.deps.log.debug(`pending edit confirmed for ${k}`);
+          } else if (type === 'waypoints') {
+            // The record may have landed in the file as a route leg; that
+            // confirms the edit too, and the resource then stops being
+            // published as a standalone waypoint (mirror deletion below).
+            const uuid = this.deps.idMap.uuidFor(id);
+            const legWp = uuid !== undefined ? waypointsByUuid.get(uuid) : undefined;
+            if (
+              legWp &&
+              legUuids.has(legWp.uuid) &&
+              canonicalUsrWaypoint(legWp) === edit.canonical
+            ) {
+              this.pending.delete(k);
+              this.deps.log.debug(`pending edit confirmed as route leg for ${k}`);
+            }
           }
         } else if (!fileContent.has(id)) {
           this.pending.delete(k);
@@ -292,7 +319,10 @@ export class SyncEngine {
           this.deps.emitDelta(type, id, null);
         }
       }
+
+      counts[type] = fileContent.size;
     }
+    return counts;
   }
 
   // ── SignalK → MFD (throttled upload) ─────────────────────────────────────
