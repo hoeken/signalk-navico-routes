@@ -12,6 +12,10 @@ yarn-error.log*
 dist/
 smoke-archive/
 
+# Webapp bundle (esbuild output; index.html and app.css are source)
+public/app.js
+public/app.js.map
+
 # Packet captures & sample MFD databases (large / device-specific)
 research/captures/
 *.pcap

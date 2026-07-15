@@ -5,8 +5,9 @@
 > overwrites nor deletes existing records — so a bidirectional mirror
 > cannot converge. Automatic SignalK → MFD sync has been **removed**: the
 > resource provider is now a read-only MFD → SignalK mirror, and pushing
-> resources to the MFD will be a manual, user-driven operation through a
-> web app (see TODO.md for the web-app spec). The sections below on
+> resources to the MFD is a manual, user-driven operation through the
+> bundled webapp (`webapp/`, served from `public/`; API in
+> `src/webapp-api.ts`). The sections below on
 > `syncToMfd`, upload throttling, foreign resources, the pending-edit
 > conflict model, echo suppression and the `ResourceWatcher` describe the
 > superseded design and are kept for reference; the USR codec and
@@ -40,7 +41,7 @@ Grounded in the findings of [research/NOTES.md](research/NOTES.md):
 
 ## 2. Non-goals
 
-- **Trails** are not synchronized (see §7 Known limitations — they are *lost*
+- **Trails** are not synchronized (see §7 Known limitations — they are _lost_
   on upload; a backup mechanism mitigates this).
 - No MFD auto-discovery in v1 (GoFree multicast discovery is a possible later
   enhancement); the MFD is addressed by a single configured IP.
@@ -60,14 +61,14 @@ Grounded in the findings of [research/NOTES.md](research/NOTES.md):
 
 Plugin config schema (JSON Schema, rendered by the SignalK admin UI):
 
-| Key                 | Type    | Default | Description |
-|---------------------|---------|---------|-------------|
-| `mfdAddress`        | string  | —       | IP address (or hostname) of the MFD to sync with. Required. Any MFD works; it propagates changes to the rest via UDB. |
-| `syncFromMfd`       | boolean | `true`  | Enable MFD → SignalK sync (periodic USR download). |
-| `syncToMfd`         | boolean | `false` | Enable SignalK → MFD sync (USR upload on resource change). |
-| `pollIntervalSeconds` | number | `60`  | How often to download the USR file from the MFD. Minimum 15. |
-| `uploadQuietSeconds` | number | `10`   | Debounce: wait for this many seconds of no further resource changes before uploading, so a burst of small edits coalesces into one upload. |
-| `uploadMinIntervalSeconds` | number | `60` | Throttle: hard floor between consecutive uploads, even if changes keep arriving. Changes are never lost — they coalesce into the next permitted upload. |
+| Key                        | Type    | Default | Description                                                                                                                                             |
+| -------------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mfdAddress`               | string  | —       | IP address (or hostname) of the MFD to sync with. Required. Any MFD works; it propagates changes to the rest via UDB.                                   |
+| `syncFromMfd`              | boolean | `true`  | Enable MFD → SignalK sync (periodic USR download).                                                                                                      |
+| `syncToMfd`                | boolean | `false` | Enable SignalK → MFD sync (USR upload on resource change).                                                                                              |
+| `pollIntervalSeconds`      | number  | `60`    | How often to download the USR file from the MFD. Minimum 15.                                                                                            |
+| `uploadQuietSeconds`       | number  | `10`    | Debounce: wait for this many seconds of no further resource changes before uploading, so a burst of small edits coalesces into one upload.              |
+| `uploadMinIntervalSeconds` | number  | `60`    | Throttle: hard floor between consecutive uploads, even if changes keep arriving. Changes are never lost — they coalesce into the next permitted upload. |
 
 Notes:
 
@@ -119,7 +120,7 @@ Notes:
   any created directly through our provider.
 - **`ResourceWatcher`** — subscribes to the server's delta stream for
   `resources.routes.*` and `resources.waypoints.*` so changes made through
-  *other* resource providers are seen in real time (multiple plugins can
+  _other_ resource providers are seen in real time (multiple plugins can
   register as providers; only writes addressed to us reach our provider
   callbacks). Filters out echoes of our own store's writes (§7), and marks
   genuinely foreign changes dirty on the `SyncEngine`.
@@ -184,7 +185,7 @@ the MFD requires, including an empty trails section if the format demands one.
 ### SignalK → MFD (`syncToMfd`)
 
 SignalK changes reach the plugin through **two channels**, because multiple
-plugins can register as resource providers and only writes addressed to *our*
+plugins can register as resource providers and only writes addressed to _our_
 provider hit our callbacks:
 
 1. **Own-provider writes** — `setResource` / `deleteResource` on our provider.
@@ -235,7 +236,7 @@ memory — but they are subject to being removed by the next MFD mirror
 - Deleting a foreign resource in SignalK removes it from the next upload,
   which deletes it on the MFD (full-mirror semantics).
 
-### Conflict model: *SignalK edits protected*
+### Conflict model: _SignalK edits protected_
 
 - MFD is the default source of truth; downloads overwrite the local store.
 - **Except**: a resource with an unconfirmed pending edit (including a pending
@@ -284,26 +285,26 @@ triggers zero watcher-initiated uploads.**
 
 ### Waypoints
 
-| SignalK (v2 waypoint)              | USR v6            |
-|------------------------------------|-------------------|
-| `feature.geometry.coordinates`     | lat/lon           |
-| `name`                             | name (UTF-16LE)   |
-| `description`                      | comment/description field if present |
+| SignalK (v2 waypoint)          | USR v6                               |
+| ------------------------------ | ------------------------------------ |
+| `feature.geometry.coordinates` | lat/lon                              |
+| `name`                         | name (UTF-16LE)                      |
+| `description`                  | comment/description field if present |
 
 ### Routes
 
-| SignalK (v2 route)                       | USR v6                    |
-|------------------------------------------|---------------------------|
-| `name`                                   | route name (UTF-16LE)     |
+| SignalK (v2 route)                          | USR v6                     |
+| ------------------------------------------- | -------------------------- |
+| `name`                                      | route name (UTF-16LE)      |
 | `feature.geometry.coordinates` (LineString) | route legs / waypoint refs |
-| `distance`                               | computed, not stored      |
+| `distance`                                  | computed, not stored       |
 
 USR routes reference waypoint records by uuid rather than embedding
 coordinates (confirmed during §6): the mapper creates the referenced waypoint
 records when serializing a SignalK route, and resolves references into a
 LineString when parsing. **Outcome:** the format has no flag distinguishing
-route-leg waypoints, so the mirror treats *any* waypoint referenced as a leg
-of *any* route as part of that route — it is represented by the route's
+route-leg waypoints, so the mirror treats _any_ waypoint referenced as a leg
+of _any_ route as part of that route — it is represented by the route's
 LineString alone and is not published as a standalone SignalK waypoint. Only
 free-standing waypoints (referenced by no route) become SignalK waypoints; a
 waypoint is (re-)published automatically when the last route referencing it
@@ -325,14 +326,14 @@ Register one provider handling both types:
 
 ```ts
 app.registerResourceProvider({
-  type: 'routes',    // and a second registration for 'waypoints'
+  type: 'routes', // and a second registration for 'waypoints'
   methods: {
     listResources: (params) => store.list('routes', params),
-    getResource:   (id)     => store.get('routes', id),
-    setResource:   (id, value) => syncEngine.localSet('routes', id, value),
-    deleteResource:(id)     => syncEngine.localDelete('routes', id),
+    getResource: (id) => store.get('routes', id),
+    setResource: (id, value) => syncEngine.localSet('routes', id, value),
+    deleteResource: (id) => syncEngine.localDelete('routes', id),
   },
-})
+});
 ```
 
 - `setResource` validates incoming resources (GeoJSON shape, finite

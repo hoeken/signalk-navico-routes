@@ -23,25 +23,53 @@ database to all other MFDs via Navico's own UDB sync.
 - Full USR v6 codec (parser + serializer), reverse-engineered and tested
   against real Zeus3S databases — see [docs/usr-v6-format.md](docs/usr-v6-format.md).
 - USR file generation from SignalK resources, with unchanged records
-  round-tripping **byte-identically** — the building block for the planned
-  manual SignalK → MFD upload (web app).
+  round-tripping **byte-identically**.
+- A bundled **webapp** for manual SignalK → MFD transfer (see below).
 
 ## Why no automatic SignalK → MFD sync?
 
 Uploading a USR file only **adds** routes and waypoints on the MFD — it
 neither overwrites nor deletes existing records. A bidirectional mirror
 therefore cannot converge, so the provider is a **read-only mirror**:
-writes through the resources API are rejected. Pushing selected routes and
-waypoints to the MFD will be a manual, user-driven operation through a web
-app (planned).
+writes through the resources API are rejected. Pushing selected routes to
+the MFD is a manual, user-driven operation through the bundled webapp.
+
+## Webapp
+
+Open **Navico Routes** from the SignalK admin UI's _Webapps_ screen (served
+at `/signalk-navico-routes`). It lists every SignalK route that is _not_
+already mirrored from the MFD — i.e. routes from other providers — in a
+sortable, searchable table, and lets you:
+
+- **Sync MFD → SignalK** — trigger an immediate download and mirror.
+- **Download MFD backup** — save the MFD's complete user database as a
+  `.usr` file (do this before experimenting; uploads cannot be undone).
+- **Download selected as USR** — export the selected SignalK routes as a
+  USR v6 file, e.g. to import on another chartplotter.
+- **Send selected to MFD** — upload the selected routes to the MFD. The
+  plugin archives a fresh backup of the MFD database first (in the plugin
+  data directory under `archive/`), and afterwards leaves the pushed routes
+  to their owning provider instead of mirroring a duplicate back.
+
+Route names are editable in the table and capped at 16 characters (the MFD
+on-screen keyboard limit); the SignalK side keeps the full name. The page
+follows a `?mode=day` / `?mode=night` query parameter, then the OS theme,
+and has an in-page day/night toggle.
+
+The API behind the webapp is mounted at `/plugins/signalk-navico-routes`
+(`POST /api/sync`, `GET /api/backup`, `POST /api/usr`, `POST /api/upload`).
+
+Remember that uploads are **additive**: re-sending an edited route adds a
+record rather than replacing the old one; delete outdated copies on the MFD
+itself.
 
 ## Configuration
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `mfdAddress` | — | IP/hostname of the MFD to sync with (required) |
-| `syncFromMfd` | `true` | Enable MFD → SignalK mirror |
-| `pollIntervalSeconds` | `60` | USR download cadence (min 15) |
+| Setting               | Default | Description                                    |
+| --------------------- | ------- | ---------------------------------------------- |
+| `mfdAddress`          | —       | IP/hostname of the MFD to sync with (required) |
+| `syncFromMfd`         | `true`  | Enable MFD → SignalK mirror                    |
+| `pollIntervalSeconds` | `60`    | USR download cadence (min 15)                  |
 
 ## Sync semantics
 
@@ -65,8 +93,12 @@ app (planned).
 
 ```
 npm install
-npm run ci        # lint + test + build
+npm run ci        # lint + webapp typecheck + test + build
 ```
+
+The webapp lives in `webapp/` (Preact + TypeScript) and is bundled by
+esbuild into `public/` (`npm run build:webapp`), targeting **Chromium 69**
+so it runs on embedded MFD browsers.
 
 Tests that depend on captured MFD databases (`research/captures/*.usr`,
 gitignored) skip automatically when the files are absent; everything else

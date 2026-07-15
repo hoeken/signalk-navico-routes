@@ -7,17 +7,20 @@
  * SignalK → MFD transfer is deliberately NOT automatic. Uploading a USR
  * file only *adds* records on the MFD (it neither overwrites nor deletes
  * existing ones), so a bidirectional mirror cannot converge. Uploads are a
- * manual, user-driven operation instead (web app, planned); the building
- * blocks — buildUsrDatabase, serializeUsr, MfdClient.upload — live in
- * mapper.ts, usr/codec.ts and mfd-client.ts.
+ * manual, user-driven operation through the webapp: `uploadToMfd` archives
+ * a fresh backup, pushes the selected routes, and suppresses their mirrored
+ * copies so the round trip does not duplicate them in SignalK.
+ *
+ * All MFD I/O — polls and manual operations alike — runs through a single
+ * promise chain, so operations never overlap.
  */
 
-import { usrRouteToResource, usrWaypointToResource } from './mapper';
-import { parseUsr } from './usr/codec';
+import { buildUsrDatabase, usrRouteToResource, usrWaypointToResource } from './mapper';
+import { parseUsr, serializeUsr } from './usr/codec';
 import type { UsrDatabase } from './usr/model';
 import type { IdMap } from './id-map';
 import type { ResourceStore } from './resource-store';
-import type { Logger, Resource, ResourceType } from './types';
+import type { Logger, Resource, ResourceType, RouteResource } from './types';
 
 const RESOURCE_TYPES: ResourceType[] = ['waypoints', 'routes'];
 
@@ -29,11 +32,14 @@ export interface SyncEngineConfig {
 export interface SyncEngineDeps {
   client: {
     download(): Promise<Buffer>;
+    upload(usr: Buffer): Promise<void>;
   };
   store: ResourceStore;
   idMap: IdMap;
   /** Last-good-download cache, served on start before the first poll. */
   cache: { load(): Promise<Buffer | undefined>; save(usr: Buffer): Promise<void> };
+  /** Pre-upload backups of the MFD database (uploads erase trails). */
+  archive: { archive(usr: Buffer): Promise<string> };
   /** Emit a SignalK resource delta (value null = deleted). */
   emitDelta(type: ResourceType, id: string, value: Resource | null): void;
   log: Logger;
@@ -41,11 +47,37 @@ export interface SyncEngineDeps {
   setError(msg: string): void;
 }
 
+export interface SyncCounts {
+  waypoints: number;
+  routes: number;
+}
+
+export interface NameAdjustment {
+  type: ResourceType;
+  original: string;
+  adjusted: string;
+}
+
+export interface BuiltUsr {
+  bytes: Buffer;
+  nameAdjustments: NameAdjustment[];
+}
+
+export interface UploadResult {
+  /** Number of routes pushed to the MFD. */
+  routes: number;
+  /** Path of the pre-upload backup written to the plugin data directory. */
+  archivedTo: string;
+  nameAdjustments: NameAdjustment[];
+}
+
 export class SyncEngine {
   private chain: Promise<void> = Promise.resolve();
   private pollTimer?: NodeJS.Timeout;
   private stopped = false;
   private mfdUnreachable = false;
+  /** Most recent successfully parsed MFD database (download or cache). */
+  private lastDb?: UsrDatabase;
 
   constructor(
     private readonly config: SyncEngineConfig,
@@ -105,6 +137,7 @@ export class SyncEngine {
     }
     try {
       const db = parseUsr(buf);
+      this.lastDb = db;
       const counts = this.mirror(db);
       this.deps.setStatus(
         `serving ${counts.waypoints} waypoints, ${counts.routes} routes from cache; waiting for MFD sync`,
@@ -125,11 +158,7 @@ export class SyncEngine {
   private runPoll(): Promise<void> {
     return this.enqueue(async () => {
       try {
-        const buf = await this.deps.client.download();
-        const db = parseUsr(buf);
-        this.reportReachable();
-        await this.saveToCache(buf);
-        const counts = this.mirror(db);
+        const { counts } = await this.pollOnce();
         this.deps.setStatus(
           `synced ${counts.waypoints} waypoints, ${counts.routes} routes from MFD`,
         );
@@ -140,6 +169,107 @@ export class SyncEngine {
         if (!this.stopped) {
           this.schedulePoll(this.config.pollIntervalSeconds * 1000);
         }
+      }
+    });
+  }
+
+  /**
+   * One download + mirror cycle. Must run inside the operation chain.
+   * Throws on an unreachable MFD or a malformed file (state untouched).
+   */
+  private async pollOnce(): Promise<{ buf: Buffer; counts: SyncCounts }> {
+    const buf = await this.deps.client.download();
+    const db = parseUsr(buf);
+    this.reportReachable();
+    await this.saveToCache(buf);
+    this.lastDb = db;
+    return { buf, counts: this.mirror(db) };
+  }
+
+  // ── Manual operations (webapp API) ───────────────────────────────────────
+
+  /** Force an immediate download + mirror; rejects if the MFD is unreachable. */
+  syncNow(): Promise<SyncCounts> {
+    return this.enqueueResult(async () => {
+      try {
+        const { counts } = await this.pollOnce();
+        this.deps.setStatus(
+          `synced ${counts.waypoints} waypoints, ${counts.routes} routes from MFD`,
+        );
+        return counts;
+      } catch (err) {
+        this.reportUnreachable('download', err);
+        throw err;
+      } finally {
+        if (!this.stopped && this.config.syncFromMfd) {
+          this.schedulePoll(this.config.pollIntervalSeconds * 1000);
+        }
+      }
+    });
+  }
+
+  /** Fresh USR download for a user-facing backup (also mirrored, as a poll). */
+  downloadNow(): Promise<Buffer> {
+    return this.enqueueResult(async () => {
+      try {
+        const { buf } = await this.pollOnce();
+        return buf;
+      } catch (err) {
+        this.reportUnreachable('download', err);
+        throw err;
+      }
+    });
+  }
+
+  /**
+   * Build a USR file containing exactly the given SignalK routes (plus their
+   * synthesized leg waypoints). Record identity comes from the persistent id
+   * map and, where possible, from the last downloaded database, so repeated
+   * builds of the same route reference the same uuids instead of minting new
+   * ones. The built routes are marked suppressed in the id map: once the file
+   * lands on the MFD, the mirror leaves them to their owning provider instead
+   * of publishing a duplicate.
+   */
+  buildUsr(routes: Map<string, RouteResource>, now = new Date()): BuiltUsr {
+    const nameAdjustments: NameAdjustment[] = [];
+    const db = buildUsrDatabase({
+      waypoints: new Map(),
+      routes,
+      previous: this.lastDb,
+      idMap: this.deps.idMap,
+      now,
+      onNameAdjusted: (type, original, adjusted) =>
+        nameAdjustments.push({ type, original, adjusted }),
+    });
+    const bytes = serializeUsr(db);
+    parseUsr(bytes); // never emit a file we couldn't re-parse ourselves
+    for (const rt of db.routes) {
+      this.deps.idMap.markSuppressed(rt.uuid, 'routes');
+    }
+    return { bytes, nameAdjustments };
+  }
+
+  /**
+   * Push the given SignalK routes to the MFD: archive a fresh backup of the
+   * MFD database first (uploads erase trails), then upload and re-mirror.
+   */
+  uploadToMfd(routes: Map<string, RouteResource>): Promise<UploadResult> {
+    return this.enqueueResult(async () => {
+      try {
+        this.deps.setStatus(`uploading ${routes.size} route(s) to MFD`);
+        const { buf } = await this.pollOnce();
+        const archivedTo = await this.deps.archive.archive(buf);
+        const { bytes, nameAdjustments } = this.buildUsr(routes);
+        await this.deps.client.upload(bytes);
+        const { counts } = await this.pollOnce();
+        this.deps.setStatus(
+          `uploaded ${routes.size} route(s) to MFD; ` +
+            `synced ${counts.waypoints} waypoints, ${counts.routes} routes back`,
+        );
+        return { routes: routes.size, archivedTo, nameAdjustments };
+      } catch (err) {
+        this.reportUnreachable('upload', err);
+        throw err;
       }
     });
   }
@@ -172,6 +302,9 @@ export class SyncEngine {
         }
       } else {
         for (const rt of db.routes) {
+          if (this.deps.idMap.isSuppressedUuid(rt.uuid)) {
+            continue; // pushed from SignalK; its owning provider serves it
+          }
           const id = this.deps.idMap.idForUuid(rt.uuid, 'routes');
           try {
             fileContent.set(id, usrRouteToResource(rt, waypointsByUuid));
@@ -203,13 +336,22 @@ export class SyncEngine {
 
   // ── Plumbing ─────────────────────────────────────────────────────────────
 
-  /** MFD operations are serialized: polls never overlap. */
+  /** MFD operations are serialized: polls and manual operations never overlap. */
+  private enqueueResult<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.chain.then(fn, fn);
+    // The chain itself never rejects; each caller handles its own errors.
+    this.chain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  /** Like enqueueResult, but any error is internal — log it and move on. */
   private enqueue(fn: () => Promise<void>): Promise<void> {
-    const next = this.chain.then(fn, fn);
-    this.chain = next.catch((err) => {
+    return this.enqueueResult(fn).catch((err) => {
       this.deps.log.error(`internal sync error: ${String(err)}`);
     });
-    return this.chain;
   }
 
   private reportReachable(): void {

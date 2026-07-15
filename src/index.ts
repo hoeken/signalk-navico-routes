@@ -7,7 +7,8 @@
  *
  * The provider is read-only: uploading a USR file only adds records on the
  * MFD, so automatic SignalK → MFD sync cannot work. Pushing resources to
- * the MFD is a manual, user-driven upload (web app, planned).
+ * the MFD is a manual, user-driven operation through the bundled webapp
+ * (served at /signalk-navico-routes, API at /plugins/signalk-navico-routes).
  */
 
 import { join } from 'node:path';
@@ -15,9 +16,12 @@ import { IdMap } from './id-map';
 import { MfdClient } from './mfd-client';
 import { ResourceStore } from './resource-store';
 import { SyncEngine } from './sync-engine';
+import { UsrArchive } from './usr-archive';
 import { UsrCache } from './usr-cache';
+import { registerApiRoutes } from './webapp-api';
 import { PLUGIN_ID } from './types';
-import type { Delta, PluginConfig, ResourceType, SignalKApp } from './types';
+import type { ApiRouter } from './webapp-api';
+import type { Delta, PluginConfig, ResourceType, RouteResource, SignalKApp } from './types';
 
 const CONFIG_SCHEMA = {
   type: 'object',
@@ -53,6 +57,7 @@ interface Plugin {
   schema: typeof CONFIG_SCHEMA;
   start(options: Partial<PluginConfig>): void;
   stop(): void | Promise<void>;
+  registerWithRouter(router: ApiRouter): void;
 }
 
 export = function createPlugin(app: SignalKApp): Plugin {
@@ -86,12 +91,14 @@ export = function createPlugin(app: SignalKApp): Plugin {
       const idMap = IdMap.load(dataDir);
       const client = new MfdClient(config.mfdAddress);
       const cache = new UsrCache(join(dataDir, 'last-sync.usr'));
+      const archive = new UsrArchive(join(dataDir, 'archive'));
 
       engine = new SyncEngine(config, {
         client,
         store,
         idMap,
         cache,
+        archive,
         emitDelta: (type, id, value) => {
           const delta: Delta = {
             updates: [{ values: [{ path: `resources.${type}.${id}`, value }] }],
@@ -143,6 +150,22 @@ export = function createPlugin(app: SignalKApp): Plugin {
       const running = engine;
       engine = undefined;
       return running?.stop();
+    },
+
+    // Webapp API, mounted at /plugins/signalk-navico-routes. Registered once
+    // at server startup; handlers answer 503 while the plugin is stopped.
+    registerWithRouter(router: ApiRouter): void {
+      registerApiRoutes(router, {
+        getEngine: () => engine,
+        listRoutes: async () => {
+          if (!app.resourcesApi) {
+            throw new Error('this SignalK server does not expose the resources API to plugins');
+          }
+          const routes = await app.resourcesApi.listResources('routes', {});
+          return routes as Record<string, RouteResource>;
+        },
+        log: { debug: (msg) => app.debug(msg), error: (msg) => app.error(msg) },
+      });
     },
   };
 

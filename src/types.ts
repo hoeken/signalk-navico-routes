@@ -82,6 +82,13 @@ export interface SignalKApp {
   getDataDirPath(): string;
   handleMessage(pluginId: string, delta: Delta, version?: string): void;
   registerResourceProvider(provider: ResourceProvider): void;
+  /** Server-side resources API (reads across all providers); SignalK ≥ 2. */
+  resourcesApi?: {
+    listResources(
+      resType: string,
+      params?: Record<string, unknown>,
+    ): Promise<Record<string, unknown>>;
+  };
 }
 
 export interface PluginConfig {

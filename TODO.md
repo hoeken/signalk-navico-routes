@@ -2,23 +2,10 @@
 
 - update default times to be a bit longer - 1m might be a bit aggressive.
 
-- webapp specs:
-  - the webapp should pull all non signalk-navico-routes routes from the v2 api
-  - present them to the user as a sortable and searchable table, no pagination
-  - use the preact framework with a minimum target of chromium 69
-  - global select/deselect all
-  - columns:
-    - checkbox w/ no label to choose which routes to send
-    - timestamp
-    - name (editable, max length 16 chars, truncated if needed)
-    - waypoints
-    - length
-  
-  - control buttons at top and bottom to:
-    - trigger MFD -> SK Sync
-    - download MFD routes backup
-    - download selected routes as USR
-    - Sync selected routes SK -> MFD
+- add plugin options under MFD -> SK sync:
+  - sync routes (boolean, default true)
+  - sync visible routes only (boolean, default true)
+  - sync waypoints (boolean, default true)
 
 ## Remaining hardware validation
 

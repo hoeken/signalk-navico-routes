@@ -11,15 +11,15 @@ Everything is **little-endian**.
 
 ## Primitives
 
-| Notation | Meaning |
-|----------|---------|
-| `u8/u16/u32/i32` | unsigned/signed integers |
-| `f32/f64` | IEEE floats |
-| `str1` | `i32 byteLen` + ASCII bytes; `len = -1` means *null/absent* |
-| `str2` | `i32 byteLen` + **UTF-16LE** bytes; `len = -1` means *null/absent* |
-| `uuid` | 16 raw bytes, a per-record globally unique id |
-| `uid` | `u32 unit` (device serial) + `u32 seqLow` + `u32 seqHigh` (64-bit sequence) |
-| `timestamp` | `u32 julianDay` + `u32 msOfDay` (QDate-style Julian day number; 1970-01-01 = 2440588) |
+| Notation         | Meaning                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `u8/u16/u32/i32` | unsigned/signed integers                                                              |
+| `f32/f64`        | IEEE floats                                                                           |
+| `str1`           | `i32 byteLen` + ASCII bytes; `len = -1` means _null/absent_                           |
+| `str2`           | `i32 byteLen` + **UTF-16LE** bytes; `len = -1` means _null/absent_                    |
+| `uuid`           | 16 raw bytes, a per-record globally unique id                                         |
+| `uid`            | `u32 unit` (device serial) + `u32 seqLow` + `u32 seqHigh` (64-bit sequence)           |
+| `timestamp`      | `u32 julianDay` + `u32 msOfDay` (QDate-style Julian day number; 1970-01-01 = 2440588) |
 
 Coordinates in waypoints are **int32 “Lowrance mercator meters”** on the
 WGS84 semi-minor axis (`SEMIMINOR = 6356752.3142`):
@@ -34,57 +34,57 @@ the canonical coordinate representation.
 
 ## Header
 
-| Field | Type | Observed value |
-|-------|------|----------------|
-| format version | `u16` | `6` |
-| stream version | `u16` | `0` |
-| unknown | `u32` | `10` |
-| title | `str1` | `"Navico export data file"` (magic) |
-| date string | `str1` | `"DD/MM/YYYY"` |
-| creation | `timestamp` | matches download time |
-| unused | `u8` | `0xff` |
-| serial number | `u32` | serial of the generating unit |
-| content description | `str1` | `"Waypoints, routes, and trails"` |
+| Field               | Type        | Observed value                      |
+| ------------------- | ----------- | ----------------------------------- |
+| format version      | `u16`       | `6`                                 |
+| stream version      | `u16`       | `0`                                 |
+| unknown             | `u32`       | `10`                                |
+| title               | `str1`      | `"Navico export data file"` (magic) |
+| date string         | `str1`      | `"DD/MM/YYYY"`                      |
+| creation            | `timestamp` | matches download time               |
+| unused              | `u8`        | `0xff`                              |
+| serial number       | `u32`       | serial of the generating unit       |
+| content description | `str1`      | `"Waypoints, routes, and trails"`   |
 
 ## Waypoints section
 
 `u32 count`, then per waypoint:
 
-| Field | Type | Notes |
-|-------|------|-------|
-| uuid | `uuid` | identity; routes reference this |
-| uid | `uid` | unit serial + sequence (unit `0` occurs and is accepted) |
-| stream version | `u16` | always `2` |
-| name | `str2` | up to 15 chars observed; MFD UI caps at 16, imported names may exceed it |
-| uid unit 2 | `u32` | equals `uid.unit` |
-| longitude | `i32` | mercator meters |
-| latitude | `i32` | mercator meters |
-| flags | `u32` | `1`, `2`, `4` observed; meaning unknown |
-| icon id | `u16` | `0…29` observed |
-| color id | `u16` | |
-| description | `str2` | usually `-1` (absent) |
-| alarm radius | `f32` | `0` observed |
-| created | `timestamp` | |
-| unused | `u8` | `0xff` |
-| depth | `f32` | feet |
-| loran GRI/Tda/Tdb | `u32 ×3` | constant `(0xffffffff, 0, 0)` |
+| Field             | Type        | Notes                                                                    |
+| ----------------- | ----------- | ------------------------------------------------------------------------ |
+| uuid              | `uuid`      | identity; routes reference this                                          |
+| uid               | `uid`       | unit serial + sequence (unit `0` occurs and is accepted)                 |
+| stream version    | `u16`       | always `2`                                                               |
+| name              | `str2`      | up to 15 chars observed; MFD UI caps at 16, imported names may exceed it |
+| uid unit 2        | `u32`       | equals `uid.unit`                                                        |
+| longitude         | `i32`       | mercator meters                                                          |
+| latitude          | `i32`       | mercator meters                                                          |
+| flags             | `u32`       | `1`, `2`, `4` observed; meaning unknown                                  |
+| icon id           | `u16`       | `0…29` observed                                                          |
+| color id          | `u16`       |                                                                          |
+| description       | `str2`      | usually `-1` (absent)                                                    |
+| alarm radius      | `f32`       | `0` observed                                                             |
+| created           | `timestamp` |                                                                          |
+| unused            | `u8`        | `0xff`                                                                   |
+| depth             | `f32`       | feet                                                                     |
+| loran GRI/Tda/Tdb | `u32 ×3`    | constant `(0xffffffff, 0, 0)`                                            |
 
 ## Routes section
 
 `u32 count`, then per route:
 
-| Field | Type | Notes |
-|-------|------|-------|
-| uuid | `uuid` | |
-| uid | `uid` | |
-| stream version | `u16` | always `1` |
-| name | `str2` | up to 24 chars observed |
-| uid unit 2 | `u32` | |
-| leg count | `u32` | |
-| legs | `uuid ×N` | references into the waypoints section (all resolve) |
-| visible | `u8` | `1` = visible, `0` = hidden (probable meaning; both observed) |
-| created | `timestamp` | |
-| unknown B | `u8` | `0xff` |
+| Field          | Type        | Notes                                                         |
+| -------------- | ----------- | ------------------------------------------------------------- |
+| uuid           | `uuid`      |                                                               |
+| uid            | `uid`       |                                                               |
+| stream version | `u16`       | always `1`                                                    |
+| name           | `str2`      | up to 24 chars observed                                       |
+| uid unit 2     | `u32`       |                                                               |
+| leg count      | `u32`       |                                                               |
+| legs           | `uuid ×N`   | references into the waypoints section (all resolve)           |
+| visible        | `u8`        | `1` = visible, `0` = hidden (probable meaning; both observed) |
+| created        | `timestamp` |                                                               |
+| unknown B      | `u8`        | `0xff`                                                        |
 
 Routes do **not** embed coordinates; every leg is a waypoint reference and
 every leg waypoint also appears in the waypoints section (the MFD lists
@@ -95,29 +95,29 @@ them as regular waypoints).
 `u32 count`, then per trail (stream version **6**, which differs from the
 v3–v5 layout GPSBabel documents — there is **no attribute-count block**):
 
-| Field | Type | Notes |
-|-------|------|-------|
-| uid | `uid` | no uuid, unlike waypoints/routes |
-| stream version | `u16` | `6` |
-| name | `str2` | |
-| flags | `u32` | `2` observed |
-| color id | `u32` | |
-| description | `str2` | |
-| created | `timestamp` | |
-| flag bytes | `u8 ×3` | |
-| point count | `u32` | tens of thousands per trail |
+| Field          | Type        | Notes                            |
+| -------------- | ----------- | -------------------------------- |
+| uid            | `uid`       | no uuid, unlike waypoints/routes |
+| stream version | `u16`       | `6`                              |
+| name           | `str2`      |                                  |
+| flags          | `u32`       | `2` observed                     |
+| color id       | `u32`       |                                  |
+| description    | `str2`      |                                  |
+| created        | `timestamp` |                                  |
+| flag bytes     | `u8 ×3`     |                                  |
+| point count    | `u32`       | tens of thousands per trail      |
 
 Per trail point:
 
-| Field | Type | Notes |
-|-------|------|-------|
-| unknown | `u16` | `3` observed |
-| unknown | `u8` | `1`, `3`, `5` observed |
-| time | `u32` | POSIX seconds |
-| longitude | `f64` | **radians** |
-| latitude | `f64` | **radians** |
-| attr count `M` | `u32` | `8` observed |
-| attrs | `(u8 id, f32 value) ×M` | id `0`/`1`; speeds, temperatures, … |
+| Field          | Type                    | Notes                               |
+| -------------- | ----------------------- | ----------------------------------- |
+| unknown        | `u16`                   | `3` observed                        |
+| unknown        | `u8`                    | `1`, `3`, `5` observed              |
+| time           | `u32`                   | POSIX seconds                       |
+| longitude      | `f64`                   | **radians**                         |
+| latitude       | `f64`                   | **radians**                         |
+| attr count `M` | `u32`                   | `8` observed                        |
+| attrs          | `(u8 id, f32 value) ×M` | id `0`/`1`; speeds, temperatures, … |
 
 The plugin walks trails only to validate file structure; it never
 re-serializes them (see “uploads erase trails” in the README).
