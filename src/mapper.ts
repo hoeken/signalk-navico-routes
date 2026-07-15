@@ -11,8 +11,8 @@ import {
   DEFAULT_COLOR_ID,
   DEFAULT_ICON_ID,
   DEFAULT_LORAN,
-  DEFAULT_ROUTE_UNKNOWN_A,
   DEFAULT_ROUTE_UNKNOWN_B,
+  DEFAULT_ROUTE_VISIBLE,
   DEFAULT_UNUSED_BYTE,
   DEFAULT_WAYPOINT_FLAGS,
   ROUTE_STREAM_VERSION,
@@ -78,7 +78,7 @@ export function usrRouteToResource(
     feature: {
       type: 'Feature',
       geometry: { type: 'LineString', coordinates },
-      properties: { uuid: rt.uuid },
+      properties: { uuid: rt.uuid, visible: rt.visible !== 0 },
     },
   };
 }
@@ -325,7 +325,7 @@ export function buildUsrDatabase(input: BuildInput): UsrDatabase {
       name: fitName(resource.name ?? '', 'routes'),
       uidUnit2: prev?.uidUnit2 ?? serialNumber,
       legUuids,
-      unknownA: prev?.unknownA ?? DEFAULT_ROUTE_UNKNOWN_A,
+      visible: prev?.visible ?? DEFAULT_ROUTE_VISIBLE,
       created: prev?.created ?? created,
       unknownB: prev?.unknownB ?? DEFAULT_ROUTE_UNKNOWN_B,
     });

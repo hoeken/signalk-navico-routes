@@ -60,8 +60,8 @@ export interface UsrRoute {
   uidUnit2: number;
   /** Ordered leg references to waypoint UUIDs. */
   legUuids: UsrUuid[];
-  /** Byte before the timestamp; observed 0 or 1, meaning unknown. */
-  unknownA: number;
+  /** Byte before the timestamp; 1 = visible, 0 = hidden (probable meaning). */
+  visible: number;
   created: UsrTimestamp;
   /** Byte after the timestamp; 0xff in observed data. */
   unknownB: number;
@@ -111,5 +111,5 @@ export const DEFAULT_ICON_ID = 2;
 export const DEFAULT_COLOR_ID = 0;
 export const DEFAULT_UNUSED_BYTE = 0xff;
 export const DEFAULT_LORAN: [number, number, number] = [0xffffffff, 0, 0];
-export const DEFAULT_ROUTE_UNKNOWN_A = 0;
+export const DEFAULT_ROUTE_VISIBLE = 1;
 export const DEFAULT_ROUTE_UNKNOWN_B = 0xff;

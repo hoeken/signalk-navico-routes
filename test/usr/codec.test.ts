@@ -197,7 +197,7 @@ describe('serializeUsr', () => {
       name: 'BROKEN',
       uidUnit2: 0,
       legUuids: [synthUuid(0xee)],
-      unknownA: 0,
+      visible: 0,
       created: { julianDay: 2461237, msOfDay: 0 },
       unknownB: 0xff,
     });

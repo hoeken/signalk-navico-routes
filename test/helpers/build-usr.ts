@@ -160,7 +160,7 @@ export function buildUsr(opts: {
     for (const leg of rt.legUuids) {
       w.hex(leg);
     }
-    w.u8(0); // unknown A
+    w.u8(0); // visible flag (0 = hidden)
     w.u32(rt.julianDay ?? 2461237);
     w.u32(rt.msOfDay ?? 2000);
     w.u8(0xff); // unknown B

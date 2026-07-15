@@ -82,7 +82,7 @@ the canonical coordinate representation.
 | uid unit 2 | `u32` | |
 | leg count | `u32` | |
 | legs | `uuid ×N` | references into the waypoints section (all resolve) |
-| unknown A | `u8` | `0` or `1` observed; meaning unknown |
+| visible | `u8` | `1` = visible, `0` = hidden (probable meaning; both observed) |
 | created | `timestamp` | |
 | unknown B | `u8` | `0xff` |
 

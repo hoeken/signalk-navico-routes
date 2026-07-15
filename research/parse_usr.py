@@ -107,7 +107,7 @@ def parse_route(r):
     n = r.u32()
     rt['leg_uuids'] = [r.raw(16).hex() for _ in range(n)]
     # trailer: u8 unknown (1..4 observed), u32 julian date, u32 ms-of-day, u8 0xff
-    rt['unknown_a'] = r.u8()
+    rt['visible'] = r.u8()
     rt['create_date'] = r.u32()
     rt['create_time'] = r.u32()
     rt['unknown_b'] = r.u8()
@@ -177,7 +177,7 @@ def parse(path):
     uuid_map = {w['uuid']: w for w in wpts}
     for rt in routes:
         resolved = sum(1 for u in rt['leg_uuids'] if u in uuid_map)
-        print(f"  {rt['name']!r:24} legs={len(rt['leg_uuids'])} resolved={resolved} sv={rt['stream_version']} a={rt['unknown_a']} date={rt['create_date']} b={rt['unknown_b']:#x}")
+        print(f"  {rt['name']!r:24} legs={len(rt['leg_uuids'])} resolved={resolved} sv={rt['stream_version']} vis={rt['visible']} date={rt['create_date']} b={rt['unknown_b']:#x}")
     print(f'  ... offset now {r.off}/{len(buf)}')
 
     nt = r.u32()

@@ -129,10 +129,10 @@ function parseRoute(r: BinaryReader): UsrRoute {
   for (let i = 0; i < numLegs; i++) {
     legUuids.push(r.bytes(UUID_BYTES).toString('hex'));
   }
-  const unknownA = r.u8();
+  const visible = r.u8();
   const created = readTimestamp(r);
   const unknownB = r.u8();
-  return { uuid, uid, streamVersion, name, uidUnit2, legUuids, unknownA, created, unknownB };
+  return { uuid, uid, streamVersion, name, uidUnit2, legUuids, visible, created, unknownB };
 }
 
 function serializeRoute(w: BinaryWriter, rt: UsrRoute): void {
@@ -145,7 +145,7 @@ function serializeRoute(w: BinaryWriter, rt: UsrRoute): void {
   for (const leg of rt.legUuids) {
     w.bytes(uuidToBytes(leg));
   }
-  w.u8(rt.unknownA);
+  w.u8(rt.visible);
   writeTimestamp(w, rt.created);
   w.u8(rt.unknownB);
 }
