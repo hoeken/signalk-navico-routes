@@ -306,6 +306,11 @@ export function timestampFromDate(date: Date): UsrTimestamp {
   };
 }
 
+/** USR timestamp (julian day + ms of UTC day) → millisecond-epoch Date. */
+export function dateFromTimestamp(t: UsrTimestamp): Date {
+  return new Date((t.julianDay - 2_440_588) * 86_400_000 + t.msOfDay);
+}
+
 /** 'DD/MM/YYYY' header date string for a given time. */
 export function usrDateString(date: Date): string {
   const dd = String(date.getUTCDate()).padStart(2, '0');

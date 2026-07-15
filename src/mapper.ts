@@ -5,7 +5,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { timestampFromDate, usrDateString } from './usr/codec';
+import { dateFromTimestamp, timestampFromDate, usrDateString } from './usr/codec';
 import { latDegToMm, latMmToDeg, lonDegToMm, lonMmToDeg } from './usr/mercator';
 import {
   DEFAULT_COLOR_ID,
@@ -25,6 +25,7 @@ import {
   WAYPOINT_STREAM_VERSION,
 } from './usr/model';
 import type { IdMap } from './id-map';
+import { PLUGIN_ID } from './types';
 import type { Position, Resource, ResourceType, RouteResource, WaypointResource } from './types';
 
 /**
@@ -41,10 +42,12 @@ export function usrWaypointToResource(wp: UsrWaypoint): WaypointResource {
   const coordinates: Position = [round8(lonMmToDeg(wp.lonMm)), round8(latMmToDeg(wp.latMm))];
   const resource: WaypointResource = {
     name: wp.name,
+    timestamp: dateFromTimestamp(wp.created).toISOString(),
+    $source: PLUGIN_ID,
     feature: {
       type: 'Feature',
       geometry: { type: 'Point', coordinates },
-      properties: { name: wp.name },
+      properties: { uuid: wp.uuid },
     },
   };
   if (wp.description !== null && wp.description !== '') {
@@ -70,10 +73,12 @@ export function usrRouteToResource(
   return {
     name: rt.name,
     distance: Math.round(lineDistanceMeters(coordinates)),
+    timestamp: dateFromTimestamp(rt.created).toISOString(),
+    $source: PLUGIN_ID,
     feature: {
       type: 'Feature',
       geometry: { type: 'LineString', coordinates },
-      properties: { name: rt.name },
+      properties: { uuid: rt.uuid },
     },
   };
 }

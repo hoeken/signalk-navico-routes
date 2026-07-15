@@ -1,9 +1,5 @@
 # signalk-navico-routes — status
 
-- route source should be listed as 'signalk-navico-routes'
-- dont put the name in the descripion field.
-- populate the timestamp field
-
 - update default times to be a bit longer - 1m might be a bit aggressive.
 
 - is there a way to enable routes by default?

@@ -4,17 +4,24 @@
  * plugin is testable against small fakes.
  */
 
+export const PLUGIN_ID = 'signalk-navico-routes';
+
 export type Position = [longitude: number, latitude: number];
 
 export interface WaypointResource {
   name?: string;
   description?: string;
+  /** ISO-8601 creation time of the MFD record (mirrored resources only). */
+  timestamp?: string;
+  /** Providing plugin id (mirrored resources only). */
+  $source?: string;
   feature: {
     type: 'Feature';
     geometry: {
       type: 'Point';
       coordinates: Position;
     };
+    /** Mirrored resources carry the Navico USR record uuid (32 hex chars) here. */
     properties: Record<string, unknown>;
   };
 }
@@ -24,12 +31,17 @@ export interface RouteResource {
   description?: string;
   /** Total route length in meters (computed, not stored on the MFD). */
   distance?: number;
+  /** ISO-8601 creation time of the MFD record (mirrored resources only). */
+  timestamp?: string;
+  /** Providing plugin id (mirrored resources only). */
+  $source?: string;
   feature: {
     type: 'Feature';
     geometry: {
       type: 'LineString';
       coordinates: Position[];
     };
+    /** Mirrored resources carry the Navico USR record uuid (32 hex chars) here. */
     properties: Record<string, unknown>;
   };
 }

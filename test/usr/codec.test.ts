@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parseUsr, serializeUsr, timestampFromDate, usrDateString } from '../../src/usr/codec';
+import {
+  dateFromTimestamp,
+  parseUsr,
+  serializeUsr,
+  timestampFromDate,
+  usrDateString,
+} from '../../src/usr/codec';
 import { UsrParseError } from '../../src/usr/binary';
 import { latDegToMm, latMmToDeg, lonDegToMm, lonMmToDeg } from '../../src/usr/mercator';
 import { buildUsr, synthUuid } from '../helpers/build-usr';
@@ -207,6 +213,12 @@ describe('timestamp helpers', () => {
     const t = timestampFromDate(new Date('2026-07-15T09:56:11.547Z'));
     expect(t.julianDay).toBe(2461237);
     expect(t.msOfDay).toBe(35771547);
+  });
+
+  it('round-trips through dateFromTimestamp', () => {
+    expect(dateFromTimestamp({ julianDay: 2440588, msOfDay: 0 }).getTime()).toBe(0);
+    const date = new Date('2026-07-15T09:56:11.547Z');
+    expect(dateFromTimestamp(timestampFromDate(date)).toISOString()).toBe(date.toISOString());
   });
 
   it('formats DD/MM/YYYY', () => {

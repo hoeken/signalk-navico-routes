@@ -58,6 +58,22 @@ describe('usr → SignalK conversion', () => {
     expect(resB.description).toBe('anchorage');
   });
 
+  it('stamps $source, record timestamp and usr uuid; leaves properties.name unset', () => {
+    const db = fixtureDb();
+    const wp = usrWaypointToResource(db.waypoints[0]!);
+    expect(wp.$source).toBe('signalk-navico-routes');
+    expect(wp.timestamp).toBe('2026-07-15T00:00:01.000Z');
+    expect(wp.feature.properties.uuid).toBe(db.waypoints[0]!.uuid);
+    expect(wp.feature.properties.name).toBeUndefined();
+
+    const byUuid = new Map(db.waypoints.map((w) => [w.uuid, w]));
+    const route = usrRouteToResource(db.routes[0]!, byUuid);
+    expect(route.$source).toBe('signalk-navico-routes');
+    expect(route.timestamp).toBe('2026-07-15T00:00:02.000Z');
+    expect(route.feature.properties.uuid).toBe(db.routes[0]!.uuid);
+    expect(route.feature.properties.name).toBeUndefined();
+  });
+
   it('converts routes to LineStrings via leg resolution, with distance', () => {
     const db = fixtureDb();
     const byUuid = new Map(db.waypoints.map((w) => [w.uuid, w]));

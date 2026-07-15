@@ -14,9 +14,8 @@ import { ResourceStore } from './resource-store';
 import { ResourceWatcher } from './resource-watcher';
 import { SyncEngine } from './sync-engine';
 import { UsrArchive } from './usr-archive';
+import { PLUGIN_ID } from './types';
 import type { Delta, PluginConfig, Resource, ResourceType, SignalKApp } from './types';
-
-const PLUGIN_ID = 'signalk-navico-routes';
 
 const CONFIG_SCHEMA = {
   type: 'object',
