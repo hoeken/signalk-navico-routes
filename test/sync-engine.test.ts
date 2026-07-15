@@ -40,10 +40,11 @@ function makeWaypoint(name: string, lon: number, lat: number): WaypointResource 
   };
 }
 
-function harness(configOverrides: Partial<SyncEngineConfig> = {}) {
+function harness(configOverrides: Partial<SyncEngineConfig> = {}, cachedUsr?: Buffer) {
   const store = new ResourceStore();
   const idMap = new IdMap();
   const mfd = { buf: buildUsr({ waypoints: [WP_A, WP_B], routes: [ROUTE] }) };
+  const cached = { buf: cachedUsr };
   const uploads: Buffer[] = [];
   const deltas: { type: ResourceType; id: string; value: Resource | null }[] = [];
   const archived: Buffer[] = [];
@@ -70,6 +71,12 @@ function harness(configOverrides: Partial<SyncEngineConfig> = {}) {
           return '/tmp/fake';
         },
       },
+      cache: {
+        load: async () => cached.buf,
+        save: async (buf: Buffer) => {
+          cached.buf = buf;
+        },
+      },
       emitDelta: (type, id, value) => deltas.push({ type, id, value }),
       listAllResources: async (type) => {
         // Server view: everything in our store plus foreign resources.
@@ -85,7 +92,7 @@ function harness(configOverrides: Partial<SyncEngineConfig> = {}) {
     },
   );
 
-  return { engine, store, idMap, mfd, uploads, deltas, archived, errors, client, foreign };
+  return { engine, store, idMap, mfd, uploads, deltas, archived, errors, client, foreign, cached };
 }
 
 async function settle(ms: number) {
@@ -183,6 +190,54 @@ describe('MFD → SignalK mirror', () => {
     await settle(60_000);
     await h.engine.flush();
     expect(h.store.ids('waypoints')).toHaveLength(1);
+    await h.engine.stop();
+  });
+});
+
+describe('startup sync cache', () => {
+  it('serves cached content immediately when the MFD is unreachable', async () => {
+    const h = harness({}, buildUsr({ waypoints: [WP_A], routes: [] }));
+    h.client.download.mockRejectedValue(new Error('ECONNREFUSED'));
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(Object.values(h.store.list('waypoints'))[0]!.name).toBe('SAVUSAVU');
+    await h.engine.stop();
+  });
+
+  it('lets the first successful poll correct stale cached content', async () => {
+    // Cache: only waypoint A. MFD: A, B and the route.
+    const h = harness({}, buildUsr({ waypoints: [WP_A], routes: [] }));
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.store.ids('waypoints')).toHaveLength(2);
+    expect(h.store.ids('routes')).toHaveLength(1);
+    await h.engine.stop();
+  });
+
+  it('ignores an unparseable cache and still syncs from the MFD', async () => {
+    const h = harness({}, Buffer.from('this is not a usr file at all............'));
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.errors.some((e) => e.includes('sync cache'))).toBe(true);
+    expect(h.store.ids('waypoints')).toHaveLength(2);
+    await h.engine.stop();
+  });
+
+  it('saves each successful download to the cache', async () => {
+    const h = harness();
+    expect(h.cached.buf).toBeUndefined();
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.cached.buf?.equals(h.mfd.buf)).toBe(true);
     await h.engine.stop();
   });
 });

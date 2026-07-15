@@ -45,6 +45,8 @@ export interface SyncEngineDeps {
   store: ResourceStore;
   idMap: IdMap;
   archive: { archive(usr: Buffer): Promise<string> };
+  /** Last-good-download cache, served on start before the first poll. */
+  cache: { load(): Promise<Buffer | undefined>; save(usr: Buffer): Promise<void> };
   /** Emit a SignalK resource delta (value null = deleted). */
   emitDelta(type: ResourceType, id: string, value: Resource | null): void;
   /** All resources of a type visible through the server's resources API. */
@@ -84,6 +86,9 @@ export class SyncEngine {
   start(): void {
     this.stopped = false;
     if (this.config.syncFromMfd) {
+      // Enqueued before the first poll: the provider serves the last good
+      // sync immediately, and the poll then corrects any drift.
+      void this.enqueue(() => this.loadFromCache());
       this.schedulePoll(0);
     }
   }
@@ -166,6 +171,37 @@ export class SyncEngine {
     }, delayMs);
   }
 
+  /** Mirror the cached last-good download, if any, so startup is instant. */
+  private async loadFromCache(): Promise<void> {
+    let buf: Buffer | undefined;
+    try {
+      buf = await this.deps.cache.load();
+    } catch (err) {
+      this.deps.log.error(`could not read sync cache: ${String(err)}`);
+      return;
+    }
+    if (!buf || this.stopped) {
+      return;
+    }
+    try {
+      const db = parseUsr(buf);
+      this.mirror(db);
+      this.deps.setStatus(
+        `serving ${db.waypoints.length} waypoints, ${db.routes.length} routes from cache; waiting for MFD sync`,
+      );
+    } catch (err) {
+      this.deps.log.error(`ignoring unparseable sync cache: ${String(err)}`);
+    }
+  }
+
+  private async saveToCache(buf: Buffer): Promise<void> {
+    try {
+      await this.deps.cache.save(buf);
+    } catch (err) {
+      this.deps.log.error(`could not write sync cache: ${String(err)}`);
+    }
+  }
+
   private runPoll(): Promise<void> {
     return this.enqueue(async () => {
       try {
@@ -173,6 +209,7 @@ export class SyncEngine {
         const db = parseUsr(buf);
         this.lastDb = db;
         this.reportReachable();
+        await this.saveToCache(buf);
         this.mirror(db);
         this.deps.setStatus(
           `synced ${db.waypoints.length} waypoints, ${db.routes.length} routes from MFD`,
@@ -311,6 +348,7 @@ export class SyncEngine {
         this.lastDb = db;
         await this.deps.archive.archive(buf);
         this.reportReachable();
+        await this.saveToCache(buf);
 
         // Bring the store up to date with any MFD-side changes first, so
         // the build below never overwrites them with stale mirror content

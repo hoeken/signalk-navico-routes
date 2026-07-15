@@ -4,7 +4,40 @@
 
 - is there a way to enable routes by default?
 
-- keep last good sync from MFD stored in local plugin storage in order to immediately serve routes and waypoints until first sync
+update route object ordering to match resources provider:
+
+{
+  "f7c67fa4-f0be-406d-9abb-382255536be6": {
+    "name": "AAA SK TEST",
+    "description": "",
+    "distance": 2433,
+    "feature": {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [178.224666380646, -17.3122949059827],
+          [178.22786892537, -17.3144185270411],
+          [178.224158981839, -17.3189464956369],
+          [178.219310270423, -17.316318781149],
+          [178.223770227909, -17.3118926673278],
+          [178.224600989733, -17.3114307184393]
+        ]
+      },
+      "properties": {
+
+      },
+      "id": ""
+    },
+    "timestamp": "2026-07-15T20:50:38.260Z",
+    "$source": "resources-provider"
+  }
+}
+
+update waypoint object ordering to match resources provider:
+
+
+
 
 - sync from SK -> MFD needs a lot of work
       - it seems that uploading the new file does not overwrite the entire DB, it only adds new routes.
