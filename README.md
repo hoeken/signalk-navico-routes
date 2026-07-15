@@ -1,12 +1,12 @@
 # signalk-navico-routes
 
-Synchronize **routes** and **waypoints** between Navico MFDs (B&G Zeus,
-Simrad NSS, Lowrance HDS, …) and [SignalK](https://signalk.org/).
+Mirror **routes** and **waypoints** from Navico MFDs (B&G Zeus, Simrad NSS,
+Lowrance HDS, …) into [SignalK](https://signalk.org/).
 
 The plugin registers as a SignalK v2 **resource provider** for `routes` and
-`waypoints`. It reads and writes the MFD's user database as a **USR v6**
-file over the MFD's built-in GoFree HTTP file service — no NMEA 2000, no
-protocol sniffing:
+`waypoints`. It reads the MFD's user database as a **USR v6** file over the
+MFD's built-in GoFree HTTP file service — no NMEA 2000, no protocol
+sniffing:
 
 ```
 POST http://<mfd-ip>/cgi-bin/download.cgi   → full user DB (USR v6)
@@ -20,14 +20,20 @@ database to all other MFDs via Navico's own UDB sync.
 
 - MFD → SignalK: periodic mirror of all routes and waypoints into
   `/signalk/v2/api/resources/routes` and `/waypoints`.
-- SignalK → MFD (optional): changes made through the resources API are
-  uploaded back, debounced and rate-limited.
 - Full USR v6 codec (parser + serializer), reverse-engineered and tested
   against real Zeus3S databases — see [docs/usr-v6-format.md](docs/usr-v6-format.md).
-- Unchanged records round-trip **byte-identically**: an upload never
-  rewrites what it doesn't have to.
-- Timestamped backups of every downloaded database before any upload
-  (plugin data directory, `usr-archive/`, last 20 kept).
+- USR file generation from SignalK resources, with unchanged records
+  round-tripping **byte-identically** — the building block for the planned
+  manual SignalK → MFD upload (web app).
+
+## Why no automatic SignalK → MFD sync?
+
+Uploading a USR file only **adds** routes and waypoints on the MFD — it
+neither overwrites nor deletes existing records. A bidirectional mirror
+therefore cannot converge, so the provider is a **read-only mirror**:
+writes through the resources API are rejected. Pushing selected routes and
+waypoints to the MFD will be a manual, user-driven operation through a web
+app (planned).
 
 ## Configuration
 
@@ -35,47 +41,25 @@ database to all other MFDs via Navico's own UDB sync.
 |---------|---------|-------------|
 | `mfdAddress` | — | IP/hostname of the MFD to sync with (required) |
 | `syncFromMfd` | `true` | Enable MFD → SignalK mirror |
-| `syncToMfd` | `false` | Enable SignalK → MFD upload |
 | `pollIntervalSeconds` | `60` | USR download cadence (min 15) |
-| `uploadQuietSeconds` | `10` | Debounce: wait for this much quiet before uploading |
-| `uploadMinIntervalSeconds` | `60` | Hard floor between uploads; changes coalesce, never lost |
 
 ## Sync semantics
 
-- **The MFD wins by default.** Downloads mirror the MFD database into
+- **The MFD is the truth.** Downloads mirror the MFD database into
   SignalK, including deletions.
-- **SignalK edits are protected** until confirmed: a change made through
-  the resources API is held in a pending-edit ledger, uploaded, and only
-  released once a subsequent download reflects it. Until then the mirror
-  cannot overwrite it, and the plugin re-uploads with backoff (5 s / 30 s /
-  2 min).
-- **Resources owned by other providers** are included in uploads (so the
-  MFD sees them) but never mirrored back into this provider (so they don't
-  duplicate). For those resources SignalK is authoritative: MFD-side edits
-  to them are overwritten by the next upload.
-- Uploads are whole-database writes: they are debounced
-  (`uploadQuietSeconds`) and rate-limited (`uploadMinIntervalSeconds`), and
-  a record-identical upload is skipped entirely.
+- Waypoints that only serve as route legs are represented by the route's
+  LineString alone; only free-standing waypoints are published as SignalK
+  waypoints.
+- The last good download is cached and served immediately on startup,
+  before the first poll.
 
 ## Known limitations (v1)
 
-1. **Uploads erase trails.** The regenerated USR file contains only routes
-   and waypoints, and `upload.cgi` replaces the whole database. The plugin
-   archives every downloaded database first (plugin data dir,
-   `usr-archive/`); restore trails by re-uploading a backup through the
-   MFD's own web page (`http://<mfd-ip>/`). Do not enable `syncToMfd` if
-   your trails are precious and unexported.
-2. The pending-edit ledger is in memory only: after a plugin/server
-   restart, unconfirmed SignalK edits are lost and the MFD state wins.
-3. One static MFD address; no GoFree auto-discovery, no multi-MFD failover.
-4. With `syncToMfd` off, resources written to this provider live in memory
-   only and are removed by the next MFD mirror.
-5. Names longer than 32 characters are truncated on upload (`~1`, `~2`, …
-   on collision). The SignalK side keeps the full name.
-6. The id ↔ MFD-record mapping is persisted in the plugin data directory
-   (`navico-id-map.json`); deleting it while `syncToMfd` is enabled can
-   duplicate SignalK-originated records after the next upload/download
-   cycle.
+1. One static MFD address; no GoFree auto-discovery, no multi-MFD failover.
+2. Names longer than 32 characters are truncated when generating a USR
+   file (`~1`, `~2`, … on collision). The SignalK side keeps the full name.
+3. The id ↔ MFD-record mapping is persisted in the plugin data directory
+   (`navico-id-map.json`).
 
 ## Development
 

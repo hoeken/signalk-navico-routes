@@ -1,5 +1,17 @@
 # SPEC — signalk-navico-routes
 
+> **Revision note (2026-07):** hardware testing showed that `upload.cgi`
+> only **adds** routes/waypoints to the MFD database — it neither
+> overwrites nor deletes existing records — so a bidirectional mirror
+> cannot converge. Automatic SignalK → MFD sync has been **removed**: the
+> resource provider is now a read-only MFD → SignalK mirror, and pushing
+> resources to the MFD will be a manual, user-driven operation through a
+> web app (see TODO.md for the web-app spec). The sections below on
+> `syncToMfd`, upload throttling, foreign resources, the pending-edit
+> conflict model, echo suppression and the `ResourceWatcher` describe the
+> superseded design and are kept for reference; the USR codec and
+> `buildUsrDatabase` remain current and will power the manual upload path.
+
 A SignalK server plugin that synchronizes **routes** and **waypoints** between
 Navico MFDs (B&G Zeus, Simrad NSS, Lowrance HDS, …) and SignalK. The plugin
 registers as a SignalK **resource provider** for `routes` and `waypoints`, and

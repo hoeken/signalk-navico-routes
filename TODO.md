@@ -37,12 +37,14 @@ update waypoint object ordering to match resources provider:
 
 
 
-- sync from SK -> MFD needs a lot of work
-      - it seems that uploading the new file does not overwrite the entire DB, it only adds new routes.
-      - it also does not overwrite existing routes
-      - because of this, i think it is better to drop the automatic SignalK -> MFD sync
-      - instead, we should build a web app to allow the user to select which routes to sync to the plotter
-      - this will eliminate all of the circular logic problems, timeouts for editing, etc.
+- [x] automatic SignalK -> MFD sync removed (2026-07-16)
+      - uploading a USR file only adds new routes/waypoints; it does not
+        overwrite or delete existing records, so a 2-way mirror can't converge
+      - the provider is now a read-only MFD -> SignalK mirror
+        (syncToMfd/upload throttle options, pending-edit ledger,
+        ResourceWatcher and foreign-resource tracking are gone)
+      - kept for the manual sync path: buildUsrDatabase, serializeUsr,
+        MfdClient.upload, UsrArchive
       
 - webapp specs:
       - the webapp should pull all non signalk-navico-routes routes from the v2 api

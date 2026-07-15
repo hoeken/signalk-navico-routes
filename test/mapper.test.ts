@@ -379,14 +379,6 @@ describe('IdMap persistence', () => {
     expect(map.idFor(u1)).toBe('some-id');
   });
 
-  it('marks and reports foreign ids', () => {
-    const map = new IdMap();
-    map.markForeign('foreign-1', 'routes');
-    expect(map.isForeign('foreign-1')).toBe(true);
-    expect(map.foreignIds('routes')).toEqual(['foreign-1']);
-    expect(map.foreignIds('waypoints')).toEqual([]);
-  });
-
   it('newUsrUuid generates unique 32-hex uuids', () => {
     const a = newUsrUuid();
     expect(a).toMatch(/^[0-9a-f]{32}$/);

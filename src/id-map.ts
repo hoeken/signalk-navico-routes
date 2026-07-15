@@ -8,8 +8,7 @@
  * - SignalK-originated resources get a random Navico uuid assigned once and
  *   persisted here; losing this mapping would duplicate those records after
  *   an upload/download cycle, so writes are atomic (temp file + rename).
- * - The map also records which SignalK ids belong to *other* resource
- *   providers (`foreign`) and which USR waypoints exist only as legs of a
+ * - The map also records which USR waypoints exist only as legs of a
  *   SignalK-defined route (`suppressed` — never surfaced as waypoints).
  */
 
@@ -24,7 +23,6 @@ const PLUGIN_NAMESPACE = Buffer.from('3f0f2d1c9a4b4d0e8c7a5e6f1a2b3c4d', 'hex');
 export interface IdMapEntry {
   uuid: string;
   type: ResourceType;
-  foreign?: boolean;
   suppressed?: boolean;
 }
 
@@ -123,22 +121,6 @@ export class IdMap {
     return this.entries.get(id);
   }
 
-  markForeign(id: string, type: ResourceType): void {
-    const entry = this.entries.get(id);
-    if (entry) {
-      if (!entry.foreign) {
-        entry.foreign = true;
-        this.save();
-      }
-      return;
-    }
-    this.set(id, { uuid: newUsrUuid(), type, foreign: true });
-  }
-
-  isForeign(id: string): boolean {
-    return this.entries.get(id)?.foreign === true;
-  }
-
   markSuppressed(uuid: string, type: ResourceType): void {
     const id = this.idForUuid(uuid, type);
     const entry = this.entries.get(id)!;
@@ -160,12 +142,6 @@ export class IdMap {
       this.byUuid.delete(entry.uuid);
       this.save();
     }
-  }
-
-  foreignIds(type: ResourceType): string[] {
-    return [...this.entries.entries()]
-      .filter(([, e]) => e.type === type && e.foreign)
-      .map(([id]) => id);
   }
 
   private set(id: string, entry: IdMapEntry): void {

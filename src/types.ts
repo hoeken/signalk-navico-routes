@@ -72,17 +72,6 @@ export interface Delta {
   }[];
 }
 
-export interface ResourcesApi {
-  listResources(
-    resType: string,
-    params?: Record<string, unknown>,
-    providerId?: string,
-  ): Promise<Record<string, unknown>>;
-  getResource(resType: string, id: string, providerId?: string): Promise<unknown>;
-  setResource(resType: string, id: string, data: object, providerId?: string): Promise<void>;
-  deleteResource(resType: string, id: string, providerId?: string): Promise<void>;
-}
-
 export interface SignalKApp {
   debug(msg: string): void;
   error(msg: string): void;
@@ -91,21 +80,12 @@ export interface SignalKApp {
   getDataDirPath(): string;
   handleMessage(pluginId: string, delta: Delta, version?: string): void;
   registerResourceProvider(provider: ResourceProvider): void;
-  resourcesApi?: ResourcesApi;
-  /** EventEmitter-ish access to the full delta stream (server-internal bus). */
-  signalk?: {
-    on(event: 'delta', cb: (delta: Delta) => void): void;
-    removeListener(event: 'delta', cb: (delta: Delta) => void): void;
-  };
 }
 
 export interface PluginConfig {
   mfdAddress: string;
   syncFromMfd: boolean;
-  syncToMfd: boolean;
   pollIntervalSeconds: number;
-  uploadQuietSeconds: number;
-  uploadMinIntervalSeconds: number;
 }
 
 export interface Logger {

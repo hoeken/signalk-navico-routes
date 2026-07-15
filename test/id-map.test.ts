@@ -18,13 +18,11 @@ describe('IdMap persistence', () => {
   it('survives a save/load round trip', () => {
     const map = IdMap.load(dir);
     const uuid = map.ensureUuid('sk-1', 'routes');
-    map.markForeign('foreign-1', 'waypoints');
     map.markSuppressed('a'.repeat(32), 'waypoints');
 
     const reloaded = IdMap.load(dir);
     expect(reloaded.uuidFor('sk-1')).toBe(uuid);
     expect(reloaded.idFor(uuid)).toBe('sk-1');
-    expect(reloaded.isForeign('foreign-1')).toBe(true);
     expect(reloaded.isSuppressedUuid('a'.repeat(32))).toBe(true);
   });
 
