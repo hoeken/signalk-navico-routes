@@ -1,17 +1,31 @@
-signalk-navico-routes
+# signalk-navico-routes — status
 
-- signalk plugin to synchronize routes and waypoints between Navico MFDs (B&G, etc).
-  - currently routes are synced between any number of Navico MFDs over the network.
-  - they are connected by both ethernet and nmea2000
-  - it appears that the routes are being synced over the ethernet network.
-  - any mfd can update the other mfds, and multiple mfds can be on the network
-  - they are likely using some sort of UDP multicast to publish route information.
-    - a different feature uses JSON over UDP to announce available webapps, so they might re-use this pattern here.
-  - to start, lets write a script to capture all UDP traffic from 192.168.2.110
-  - during testing, I will update a route with the name 'SAVUSAVU 2 NANAK' which should help us find the appropriate data
+The plugin described in [SPEC.md](SPEC.md) is implemented (M1–M6):
 
+- [x] USR v6 codec (parse + serialize), byte-exact against real Zeus3S captures
+- [x] SignalK v2 resource provider for routes and waypoints
+- [x] MFD → SignalK mirror sync (poll, full-mirror deletion, error resilience)
+- [x] SignalK → MFD upload (pending-edit ledger, debounce + rate floor,
+      confirmation, echo suppression / loop prevention, USR archive)
+- [x] Foreign-provider resource handling (ResourceWatcher)
+- [x] 84 tests green (`npm run ci`), format documented in docs/usr-v6-format.md
+- [x] Read-only hardware smoke test passed against Zeus3S 192.168.2.110
+      (808 waypoints / 60 routes, serialize round-trip byte-identical)
 
-- construct routes into signalk compliant data
-- publish routes as signalk routes provider
-- optionally re-publish routes back to navico
-- also synchronize waypoints
+## Remaining hardware validation
+
+- [ ] `node scripts/smoke-test.js <mfd-ip> --upload` — full upload round trip.
+      **Erases trails** (a backup .usr is written first). Verifies the MFD
+      accepts a regenerated file and preserves all records.
+- [ ] Verify UDB propagation: upload to one MFD, confirm the other shows the
+      change.
+- [ ] Create a route/waypoint in SignalK, confirm it appears on both MFDs and
+      survives an MFD-side edit cycle.
+- [ ] Confirm the true name-length limit on hardware (codec currently
+      truncates at 32 chars; MFD files contain up to 24).
+
+## Possible later enhancements (non-goals for v1, see SPEC §2)
+
+- GoFree multicast auto-discovery (`239.2.1.1:2052`) instead of a static IP
+- Trail → SignalK track import (read-only would avoid the erase problem)
+- Persist the pending-edit ledger across restarts

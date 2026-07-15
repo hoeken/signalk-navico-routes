@@ -1,0 +1,52 @@
+{
+  "name": "signalk-navico-routes",
+  "version": "0.1.0",
+  "description": "Synchronize routes and waypoints between Navico MFDs (B&G Zeus, Simrad NSS, Lowrance HDS) and SignalK via GoFree USR file transfer",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "Apache-2.0",
+  "author": "Zach Hoeken <hoeken@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hoeken/signalk-navico-routes"
+  },
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-category-navigation",
+    "signalk",
+    "navico",
+    "b&g",
+    "simrad",
+    "lowrance",
+    "routes",
+    "waypoints",
+    "usr"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src test",
+    "format": "prettier --write src test scripts docs *.md",
+    "format:check": "prettier --check src test",
+    "ci": "npm run lint && npm run test && npm run build",
+    "prepublishOnly": "npm run ci"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@types/node": "^20.14.0",
+    "eslint": "^9.9.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  }
+}

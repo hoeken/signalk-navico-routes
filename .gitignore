@@ -9,6 +9,8 @@ venv/
 node_modules/
 npm-debug.log*
 yarn-error.log*
+dist/
+smoke-archive/
 
 # Packet captures & sample MFD databases (large / device-specific)
 research/captures/
