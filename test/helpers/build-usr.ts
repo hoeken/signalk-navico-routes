@@ -28,6 +28,7 @@ export interface SynthRoute {
   seq?: number;
   name: string;
   legUuids: string[];
+  visible?: number;
   julianDay?: number;
   msOfDay?: number;
 }
@@ -160,7 +161,7 @@ export function buildUsr(opts: {
     for (const leg of rt.legUuids) {
       w.hex(leg);
     }
-    w.u8(0); // visible flag (0 = hidden)
+    w.u8(rt.visible ?? 1); // visible flag (1 = visible, 0 = hidden)
     w.u32(rt.julianDay ?? 2461237);
     w.u32(rt.msOfDay ?? 2000);
     w.u8(0xff); // unknown B

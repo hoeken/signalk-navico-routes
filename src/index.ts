@@ -40,6 +40,24 @@ const CONFIG_SCHEMA = {
       description: 'Periodically download the user database and mirror it into SignalK.',
       default: true,
     },
+    syncRoutes: {
+      type: 'boolean',
+      title: 'Sync routes',
+      description: 'Mirror MFD routes into SignalK.',
+      default: true,
+    },
+    syncVisibleRoutesOnly: {
+      type: 'boolean',
+      title: 'Sync visible routes only',
+      description: 'Skip routes that are hidden on the MFD.',
+      default: true,
+    },
+    syncWaypoints: {
+      type: 'boolean',
+      title: 'Sync waypoints',
+      description: 'Mirror free-standing MFD waypoints into SignalK.',
+      default: true,
+    },
     pollIntervalSeconds: {
       type: 'number',
       title: 'Poll interval (seconds)',
@@ -74,6 +92,9 @@ export = function createPlugin(app: SignalKApp): Plugin {
       const config: PluginConfig = {
         mfdAddress: options.mfdAddress ?? '',
         syncFromMfd: options.syncFromMfd ?? true,
+        syncRoutes: options.syncRoutes ?? true,
+        syncVisibleRoutesOnly: options.syncVisibleRoutesOnly ?? true,
+        syncWaypoints: options.syncWaypoints ?? true,
         pollIntervalSeconds: Math.max(15, options.pollIntervalSeconds ?? 60),
       };
 

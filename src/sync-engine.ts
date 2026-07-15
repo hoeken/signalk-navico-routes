@@ -26,6 +26,9 @@ const RESOURCE_TYPES: ResourceType[] = ['waypoints', 'routes'];
 
 export interface SyncEngineConfig {
   syncFromMfd: boolean;
+  syncRoutes: boolean;
+  syncVisibleRoutesOnly: boolean;
+  syncWaypoints: boolean;
   pollIntervalSeconds: number;
 }
 
@@ -283,13 +286,17 @@ export class SyncEngine {
     // The MFD builds routes out of waypoint records; SignalK routes carry
     // their own geometry. A waypoint serving as a route leg is represented
     // by the route's LineString alone — only free-standing waypoints are
-    // published as SignalK waypoints.
+    // published as SignalK waypoints. Legs stay unpublished even when their
+    // route is filtered out (hidden, or route sync off): they are still
+    // route legs on the MFD, not free-standing waypoints.
     const legUuids = new Set<string>(db.routes.flatMap((rt) => rt.legUuids));
     const counts = { waypoints: 0, routes: 0 };
 
     for (const type of RESOURCE_TYPES) {
+      // A disabled type gets an empty fileContent: full-mirror deletion then
+      // unpublishes anything mirrored before the option was turned off.
       const fileContent = new Map<string, Resource>();
-      if (type === 'waypoints') {
+      if (type === 'waypoints' && this.config.syncWaypoints) {
         for (const wp of db.waypoints) {
           if (legUuids.has(wp.uuid)) {
             continue; // route leg, represented by the route resource
@@ -300,8 +307,11 @@ export class SyncEngine {
           const id = this.deps.idMap.idForUuid(wp.uuid, 'waypoints');
           fileContent.set(id, usrWaypointToResource(wp));
         }
-      } else {
+      } else if (type === 'routes' && this.config.syncRoutes) {
         for (const rt of db.routes) {
+          if (this.config.syncVisibleRoutesOnly && rt.visible === 0) {
+            continue; // hidden on the MFD
+          }
           if (this.deps.idMap.isSuppressedUuid(rt.uuid)) {
             continue; // pushed from SignalK; its owning provider serves it
           }

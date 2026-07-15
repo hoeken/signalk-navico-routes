@@ -94,6 +94,9 @@ export interface SignalKApp {
 export interface PluginConfig {
   mfdAddress: string;
   syncFromMfd: boolean;
+  syncRoutes: boolean;
+  syncVisibleRoutesOnly: boolean;
+  syncWaypoints: boolean;
   pollIntervalSeconds: number;
 }
 

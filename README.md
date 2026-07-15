@@ -65,11 +65,14 @@ itself.
 
 ## Configuration
 
-| Setting               | Default | Description                                    |
-| --------------------- | ------- | ---------------------------------------------- |
-| `mfdAddress`          | —       | IP/hostname of the MFD to sync with (required) |
-| `syncFromMfd`         | `true`  | Enable MFD → SignalK mirror                    |
-| `pollIntervalSeconds` | `60`    | USR download cadence (min 15)                  |
+| Setting                 | Default | Description                                    |
+| ----------------------- | ------- | ---------------------------------------------- |
+| `mfdAddress`            | —       | IP/hostname of the MFD to sync with (required) |
+| `syncFromMfd`           | `true`  | Enable MFD → SignalK mirror                    |
+| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                 |
+| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD         |
+| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints             |
+| `pollIntervalSeconds`   | `60`    | USR download cadence (min 15)                  |
 
 ## Sync semantics
 
@@ -77,7 +80,8 @@ itself.
   SignalK, including deletions.
 - Waypoints that only serve as route legs are represented by the route's
   LineString alone; only free-standing waypoints are published as SignalK
-  waypoints.
+  waypoints. This holds even when a route itself is filtered out (hidden,
+  or route sync disabled): its legs stay unpublished.
 - The last good download is cached and served immediately on startup,
   before the first poll.
 

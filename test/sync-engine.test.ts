@@ -9,6 +9,9 @@ import { buildUsr, synthUuid } from './helpers/build-usr';
 
 const CONFIG: SyncEngineConfig = {
   syncFromMfd: true,
+  syncRoutes: true,
+  syncVisibleRoutesOnly: true,
+  syncWaypoints: true,
   pollIntervalSeconds: 60,
 };
 
@@ -225,6 +228,75 @@ describe('MFD → SignalK mirror', () => {
     await h.engine.flush();
     expect(h.store.ids('waypoints')).toHaveLength(2);
     expect(h.store.ids('routes')).toHaveLength(0);
+    await h.engine.stop();
+  });
+
+  it('syncRoutes=false: publishes no routes, still publishes waypoints', async () => {
+    const h = harness({ syncRoutes: false });
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.store.ids('routes')).toHaveLength(0);
+    // Route legs stay unpublished: the route still exists on the MFD.
+    expect(Object.values(h.store.list('waypoints')).map((w) => w.name)).toEqual(['VUDA']);
+    await h.engine.stop();
+  });
+
+  it('syncWaypoints=false: publishes no waypoints, still publishes routes', async () => {
+    const h = harness({ syncWaypoints: false });
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.store.ids('waypoints')).toHaveLength(0);
+    expect(h.store.ids('routes')).toHaveLength(1);
+    await h.engine.stop();
+  });
+
+  it('syncVisibleRoutesOnly=true: skips routes hidden on the MFD', async () => {
+    const h = harness();
+    h.mfd.buf = buildUsr({
+      waypoints: [WP_A, WP_B, WP_C],
+      routes: [{ ...ROUTE, visible: 0 }],
+    });
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+    expect(h.store.ids('routes')).toHaveLength(0);
+    // Hidden-route legs stay unpublished too.
+    expect(Object.values(h.store.list('waypoints')).map((w) => w.name)).toEqual(['VUDA']);
+
+    // Route made visible on the MFD → published on the next poll.
+    h.mfd.buf = buildUsr({ waypoints: [WP_A, WP_B, WP_C], routes: [ROUTE] });
+    await settle(60_000);
+    await h.engine.flush();
+    expect(h.store.ids('routes')).toHaveLength(1);
+
+    // Hidden again → unpublished.
+    h.mfd.buf = buildUsr({
+      waypoints: [WP_A, WP_B, WP_C],
+      routes: [{ ...ROUTE, visible: 0 }],
+    });
+    await settle(60_000);
+    await h.engine.flush();
+    expect(h.store.ids('routes')).toHaveLength(0);
+    await h.engine.stop();
+  });
+
+  it('syncVisibleRoutesOnly=false: publishes hidden routes too', async () => {
+    const h = harness({ syncVisibleRoutesOnly: false });
+    h.mfd.buf = buildUsr({
+      waypoints: [WP_A, WP_B, WP_C],
+      routes: [{ ...ROUTE, visible: 0 }],
+    });
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+
+    expect(h.store.ids('routes')).toHaveLength(1);
+    const route = Object.values(h.store.list('routes'))[0] as RouteResource;
+    expect(route.feature.properties.visible).toBe(false);
     await h.engine.stop();
   });
 
