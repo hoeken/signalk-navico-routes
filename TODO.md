@@ -1,31 +1,44 @@
 # signalk-navico-routes — status
 
-The plugin described in [SPEC.md](SPEC.md) is implemented (M1–M6):
+- route source should be listed as 'signalk-navico-routes'
+- dont put the name in the descripion field.
+- populate the timestamp field
 
-- [x] USR v6 codec (parse + serialize), byte-exact against real Zeus3S captures
-- [x] SignalK v2 resource provider for routes and waypoints
-- [x] MFD → SignalK mirror sync (poll, full-mirror deletion, error resilience)
-- [x] SignalK → MFD upload (pending-edit ledger, debounce + rate floor,
-      confirmation, echo suppression / loop prevention, USR archive)
-- [x] Foreign-provider resource handling (ResourceWatcher)
-- [x] 84 tests green (`npm run ci`), format documented in docs/usr-v6-format.md
-- [x] Read-only hardware smoke test passed against Zeus3S 192.168.2.110
-      (808 waypoints / 60 routes, serialize round-trip byte-identical)
+- update default times to be a bit longer - 1m might be a bit aggressive.
+
+- is there a way to enable routes by default?
+
+- keep last good sync from MFD stored in local plugin storage in order to immediately serve routes and waypoints until first sync
+
+- sync from SK -> MFD needs a lot of work
+      - it seems that uploading the new file does not overwrite the entire DB, it only adds new routes.
+      - it also does not overwrite existing routes
+      - because of this, i think it is better to drop the automatic SignalK -> MFD sync
+      - instead, we should build a web app to allow the user to select which routes to sync to the plotter
+      - this will eliminate all of the circular logic problems, timeouts for editing, etc.
+      
+- webapp specs:
+      - the webapp should pull all non signalk-navico-routes routes from the v2 api
+      - present them to the user as a sortable and searchable table, no pagination
+      - use the preact framework with a minimum target of chromium 69
+      - global select/deselect all
+      - columns:
+            - checkbox w/ no label to choose which routes to send
+            - timestamp
+            - name (editable, max length 16 chars, truncated if needed)
+            - waypoints
+            - length
+      
+      - control buttons at top and bottom to:
+            - download MFD routes backup
+            - download selected routes
+            - upload routes to MFD
 
 ## Remaining hardware validation
 
-- [ ] `node scripts/smoke-test.js <mfd-ip> --upload` — full upload round trip.
-      **Erases trails** (a backup .usr is written first). Verifies the MFD
-      accepts a regenerated file and preserves all records.
-- [ ] Verify UDB propagation: upload to one MFD, confirm the other shows the
-      change.
-- [ ] Create a route/waypoint in SignalK, confirm it appears on both MFDs and
-      survives an MFD-side edit cycle.
 - [ ] Confirm the true name-length limit on hardware (codec currently
       truncates at 32 chars; MFD files contain up to 24).
 
 ## Possible later enhancements (non-goals for v1, see SPEC §2)
 
 - GoFree multicast auto-discovery (`239.2.1.1:2052`) instead of a static IP
-- Trail → SignalK track import (read-only would avoid the erase problem)
-- Persist the pending-edit ledger across restarts
