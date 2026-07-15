@@ -42,16 +42,17 @@ export function usrWaypointToResource(wp: UsrWaypoint): WaypointResource {
   const coordinates: Position = [round8(lonMmToDeg(wp.lonMm)), round8(latMmToDeg(wp.latMm))];
   const resource: WaypointResource = {
     name: wp.name,
-    timestamp: dateFromTimestamp(wp.created).toISOString(),
-    $source: PLUGIN_ID,
+    description: wp.description ?? '',
     feature: {
       type: 'Feature',
       geometry: { type: 'Point', coordinates },
       properties: { uuid: wp.uuid },
+      id: '',
     },
+    timestamp: dateFromTimestamp(wp.created).toISOString(),
+    $source: PLUGIN_ID,
   };
   if (wp.description !== null && wp.description !== '') {
-    resource.description = wp.description;
     resource.feature.properties.description = wp.description;
   }
   return resource;
@@ -72,14 +73,16 @@ export function usrRouteToResource(
   }
   return {
     name: rt.name,
+    description: '',
     distance: Math.round(lineDistanceMeters(coordinates)),
-    timestamp: dateFromTimestamp(rt.created).toISOString(),
-    $source: PLUGIN_ID,
     feature: {
       type: 'Feature',
       geometry: { type: 'LineString', coordinates },
       properties: { uuid: rt.uuid, visible: rt.visible !== 0 },
+      id: '',
     },
+    timestamp: dateFromTimestamp(rt.created).toISOString(),
+    $source: PLUGIN_ID,
   };
 }
 

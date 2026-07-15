@@ -49,7 +49,7 @@ describe('usr → SignalK conversion', () => {
     const [a, b] = db.waypoints;
     const resA = usrWaypointToResource(a!);
     expect(resA.name).toBe('SAVUSAVU');
-    expect(resA.description).toBeUndefined();
+    expect(resA.description).toBe('');
     expect(resA.feature.geometry.type).toBe('Point');
     expect(resA.feature.geometry.coordinates[0]).toBeCloseTo(179.32534, 4);
     expect(resA.feature.geometry.coordinates[1]).toBeCloseTo(-16.7768, 4);

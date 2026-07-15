@@ -11,10 +11,6 @@ export type Position = [longitude: number, latitude: number];
 export interface WaypointResource {
   name?: string;
   description?: string;
-  /** ISO-8601 creation time of the MFD record (mirrored resources only). */
-  timestamp?: string;
-  /** Providing plugin id (mirrored resources only). */
-  $source?: string;
   feature: {
     type: 'Feature';
     geometry: {
@@ -23,7 +19,12 @@ export interface WaypointResource {
     };
     /** Mirrored resources carry the Navico USR record uuid (32 hex chars) here. */
     properties: Record<string, unknown>;
+    id?: string;
   };
+  /** ISO-8601 creation time of the MFD record (mirrored resources only). */
+  timestamp?: string;
+  /** Providing plugin id (mirrored resources only). */
+  $source?: string;
 }
 
 export interface RouteResource {
@@ -31,10 +32,6 @@ export interface RouteResource {
   description?: string;
   /** Total route length in meters (computed, not stored on the MFD). */
   distance?: number;
-  /** ISO-8601 creation time of the MFD record (mirrored resources only). */
-  timestamp?: string;
-  /** Providing plugin id (mirrored resources only). */
-  $source?: string;
   feature: {
     type: 'Feature';
     geometry: {
@@ -43,7 +40,12 @@ export interface RouteResource {
     };
     /** Mirrored resources carry the Navico USR record uuid (32 hex chars) here. */
     properties: Record<string, unknown>;
+    id?: string;
   };
+  /** ISO-8601 creation time of the MFD record (mirrored resources only). */
+  timestamp?: string;
+  /** Providing plugin id (mirrored resources only). */
+  $source?: string;
 }
 
 export type ResourceType = 'routes' | 'waypoints';
