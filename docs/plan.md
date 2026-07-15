@@ -1,8 +1,8 @@
 # signalk-navico-routes
 
-This is a plugin for SignalK.  It is intended to synchronize routes and waypoints between Navico MFDs and SignalK.  The plugin should register as a resource provider for both routes and waypoints.
+This is a plugin for SignalK.  It is intended to synchronize routes and waypoints between Navico MFDs and SignalK.  The plugin should register as a resource provider for both routes and waypoints.  Follow the SignalK documentation on resource providers: https://demo.signalk.org/documentation/Developing/Plugins/Resource_Providers.html
 
-Plugin development should be test driven and every major features should be tested.  The plugin should be in typescript and support a minimum of node 20.  Use modern development practices to produce a high quality plugin.  There will not be a web app associated with this plugin.
+Plugin development should be test driven and every major features should be tested.  The plugin should be in typescript and support a minimum of node 20.  Use modern development practices to produce a high quality plugin. The plugin should be linted with eslint and/or prettify. There will not be a web app associated with this plugin.
 
 Based on our research/NOTES.md, we can both read and write the entire route DB on the MFD.  We will need to fully reverse engineer the USR v6 format.
 
