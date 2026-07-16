@@ -27,6 +27,14 @@
   "engines": {
     "node": ">=20"
   },
+  "signalk": {
+    "appIcon": "logo.png",
+    "displayName": "Navico Route Sync",
+    "screenshots": [],
+    "recommends": [
+      "signalk-navico-embedder"
+    ]
+  },
   "files": [
     "dist",
     "docs",
@@ -34,6 +42,7 @@
   ],
   "scripts": {
     "build": "tsc && npm run build:webapp",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "build:webapp": "esbuild webapp/src/app.tsx --bundle --minify --sourcemap --target=chrome69 --jsx=automatic --jsx-import-source=preact --outfile=public/app.js",
     "typecheck:webapp": "tsc --noEmit -p webapp",
     "test": "vitest run",
@@ -50,8 +59,10 @@
     "esbuild": "^0.28.1",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
+    "png-to-ico": "^3.0.2",
     "preact": "^10.29.7",
     "prettier": "^3.3.0",
+    "sharp": "^0.35.3",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0",
     "vitest": "^2.0.0"

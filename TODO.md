@@ -1,8 +1,6 @@
 # 1.0.0
 
-- icon
 - screenshots
-- package.json -> recommends
 - readme -> user facing
 - readme -> split out developer stuff in to separate doc
 - Confirm the true name-length limit on hardware (codec currently truncates at 32 chars; MFD files contain up to 24).
