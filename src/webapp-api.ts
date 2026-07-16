@@ -12,16 +12,22 @@
  * tiny, and narrow local interfaces keep the module testable with fakes.
  */
 
+import { GPX_CONTENT_TYPE, gpxFromRouteResources, gpxFromUsrDatabase } from './gpx';
 import { validateResource } from './mapper';
 import { PLUGIN_ID } from './types';
+import { parseUsr } from './usr/codec';
 import type { SyncEngine } from './sync-engine';
 import type { Logger, RouteResource } from './types';
 
 /** Name limit enforced for MFD-bound routes (Zeus3S on-screen keyboard cap). */
 export const MFD_NAME_LIMIT = 16;
 
+/** Download formats offered by the webapp. */
+export type ExportFormat = 'usr' | 'gpx';
+
 export interface ApiRequest {
   body?: unknown;
+  query?: unknown;
 }
 
 export interface ApiResponse {
@@ -106,24 +112,41 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
     }),
   );
 
-  // The MFD's full user database, as a browser download. Served from the
-  // last good download when cached; fetched fresh from the MFD otherwise.
+  // The MFD's user database, as a browser download: the raw USR file
+  // (?format=usr, the default) or its routes and free-standing waypoints
+  // converted to GPX (?format=gpx). Served from the last good download
+  // when cached; fetched fresh from the MFD otherwise.
   router.get(
     '/api/backup',
-    wrap(async (_req, res) => {
+    wrap(async (req, res) => {
+      const format = parseFormat((req.query as { format?: unknown } | undefined)?.format);
       const buf = await engine().backupNow();
-      sendUsr(res, buf, `navico-backup-${fileStamp(now())}.usr`);
+      if (format === 'gpx') {
+        const gpx = gpxFromUsrDatabase(parseUsr(buf), now());
+        sendFile(res, Buffer.from(gpx), `navico-routes-${fileStamp(now())}.gpx`, GPX_CONTENT_TYPE);
+      } else {
+        sendFile(res, buf, `navico-backup-${fileStamp(now())}.usr`, USR_CONTENT_TYPE);
+      }
     }),
   );
 
-  // Build a USR file from the selected SignalK routes, as a browser download.
+  // Build a USR or GPX file from the selected SignalK routes, as a browser
+  // download. GPX needs no MFD state, so it skips the engine entirely.
   router.post(
-    '/api/usr',
+    '/api/export',
     wrap(async (req, res) => {
-      const routes = await resolveSelection(deps, req.body);
-      const { bytes, nameAdjustments } = engine().buildUsr(routes, now());
-      logAdjustments(deps.log, nameAdjustments);
-      sendUsr(res, bytes, `signalk-routes-${fileStamp(now())}.usr`);
+      const format = parseFormat((req.body as { format?: unknown } | undefined)?.format);
+      // GPX has no name-length limit; USR names are capped for the MFD.
+      const routes = await resolveSelection(deps, req.body, format === 'gpx' ? Infinity : undefined);
+      const stamp = fileStamp(now());
+      if (format === 'gpx') {
+        const gpx = gpxFromRouteResources(routes, now());
+        sendFile(res, Buffer.from(gpx), `signalk-routes-${stamp}.gpx`, GPX_CONTENT_TYPE);
+      } else {
+        const { bytes, nameAdjustments } = engine().buildUsr(routes, now());
+        logAdjustments(deps.log, nameAdjustments);
+        sendFile(res, bytes, `signalk-routes-${stamp}.usr`, USR_CONTENT_TYPE);
+      }
     }),
   );
 
@@ -146,6 +169,7 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
 async function resolveSelection(
   deps: WebappApiDeps,
   body: unknown,
+  nameLimit = MFD_NAME_LIMIT,
 ): Promise<Map<string, RouteResource>> {
   const selections = parseSelections(body);
   const all = await deps.listRoutes();
@@ -163,7 +187,9 @@ async function resolveSelection(
       throw new ApiError(400, `route ${sel.id}: ${problem}`);
     }
     const name =
-      cleanName(sel.name) ?? cleanName(route.name) ?? `ROUTE ${sel.id.slice(0, 8).toUpperCase()}`;
+      cleanName(sel.name, nameLimit) ??
+      cleanName(route.name, nameLimit) ??
+      `ROUTE ${sel.id.slice(0, 8).toUpperCase()}`;
     routes.set(sel.id, { ...route, name });
   }
   return routes;
@@ -190,9 +216,9 @@ function parseSelections(body: unknown): RouteSelection[] {
   });
 }
 
-/** Trimmed and capped at the MFD name limit; undefined if effectively empty. */
-function cleanName(name: string | undefined): string | undefined {
-  const cleaned = name?.trim().slice(0, MFD_NAME_LIMIT).trimEnd();
+/** Trimmed and capped at the given limit; undefined if effectively empty. */
+function cleanName(name: string | undefined, limit: number): string | undefined {
+  const cleaned = name?.trim().slice(0, limit).trimEnd();
   return cleaned ? cleaned : undefined;
 }
 
@@ -205,8 +231,21 @@ function logAdjustments(
   }
 }
 
-function sendUsr(res: ApiResponse, bytes: Buffer, filename: string): void {
-  res.setHeader('content-type', 'application/octet-stream');
+const USR_CONTENT_TYPE = 'application/octet-stream';
+
+/** Missing/empty means USR (the historical default); anything else is a 400. */
+function parseFormat(value: unknown): ExportFormat {
+  if (value === undefined || value === '' || value === 'usr') {
+    return 'usr';
+  }
+  if (value === 'gpx') {
+    return 'gpx';
+  }
+  throw new ApiError(400, `unknown format '${JSON.stringify(value)}' (expected usr or gpx)`);
+}
+
+function sendFile(res: ApiResponse, bytes: Buffer, filename: string, contentType: string): void {
+  res.setHeader('content-type', contentType);
   res.setHeader('content-disposition', `attachment; filename="${filename}"`);
   res.send(bytes);
 }

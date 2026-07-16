@@ -5,10 +5,9 @@
 - readme -> user facing
 - readme -> split out developer stuff in to separate doc
 
-- Download MFD Backup -> Download MFD Routes
-- Download Selected as USR -> Download Selected
-- both buttons should pop up a modal where the user can select the format:  USR or .gpx file
+- route names should show as a text input at all times so the user knows it is editable.
 
+Webapp changes:
 - admin UI -> React UI
   - MFD -> SK specific options nested
   - specific options should enable based on if the parent option is enabled.

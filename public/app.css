@@ -322,6 +322,74 @@ td.empty {
   color: var(--busy);
 }
 
+/* ── Format modal ───────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.modal-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.modal-text {
+  margin: 0 0 12px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.modal-formats {
+  display: flex;
+  margin: 0 -4px;
+}
+
+.modal-format {
+  flex: 1;
+  display: block;
+  text-align: left;
+  padding: 12px 14px;
+}
+
+.modal-format-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.modal-format-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.modal-actions {
+  margin-top: 12px;
+  text-align: right;
+}
+
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 
 .footer {

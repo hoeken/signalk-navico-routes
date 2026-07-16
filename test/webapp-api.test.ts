@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, MFD_NAME_LIMIT, registerApiRoutes } from '../src/webapp-api';
 import { PLUGIN_ID } from '../src/types';
+import { buildUsr, synthUuid } from './helpers/build-usr';
 import type { ApiRequest, ApiResponse, ApiRouter, WebappApiDeps } from '../src/webapp-api';
 import type { SyncEngine } from '../src/sync-engine';
 import type { RouteResource } from '../src/types';
@@ -80,7 +81,12 @@ function harness(overrides: Partial<WebappApiDeps> = {}) {
     ...overrides,
   });
 
-  async function call(method: string, path: string, body?: unknown): Promise<Reply> {
+  async function call(
+    method: string,
+    path: string,
+    body?: unknown,
+    query?: unknown,
+  ): Promise<Reply> {
     const handler = handlers.get(`${method} ${path}`);
     if (!handler) {
       throw new Error(`no handler for ${method} ${path}`);
@@ -104,7 +110,7 @@ function harness(overrides: Partial<WebappApiDeps> = {}) {
           resolve(reply);
         },
       };
-      handler({ body }, res);
+      handler({ body, query }, res);
     });
   }
 
@@ -174,9 +180,9 @@ describe('webapp api', () => {
     );
   });
 
-  it('POST /api/usr builds a file from the selection, applying name overrides', async () => {
+  it('POST /api/export builds a USR file from the selection, applying name overrides', async () => {
     const h = harness();
-    const reply = await h.call('POST', '/api/usr', {
+    const reply = await h.call('POST', '/api/export', {
       routes: [{ id: 'r-foreign', name: '  Savusavu Leg 1  ' }],
     });
     expect(reply.body?.toString()).toBe('USR-BUILT');
@@ -188,7 +194,7 @@ describe('webapp api', () => {
 
   it('caps names at the MFD limit and falls back to the route name', async () => {
     const h = harness();
-    await h.call('POST', '/api/usr', { routes: [{ id: 'r-foreign' }] });
+    await h.call('POST', '/api/export', { routes: [{ id: 'r-foreign' }] });
     const routes = h.engine.buildUsr.mock.calls[0]![0] as Map<string, RouteResource>;
     const name = routes.get('r-foreign')!.name!;
     expect(name).toBe(FOREIGN_ROUTE.name!.slice(0, MFD_NAME_LIMIT).trimEnd());
@@ -197,19 +203,99 @@ describe('webapp api', () => {
 
   it('rejects malformed selections with 400', async () => {
     const h = harness();
-    expect((await h.call('POST', '/api/usr', undefined)).status).toBe(400);
-    expect((await h.call('POST', '/api/usr', { routes: [] })).status).toBe(400);
-    expect((await h.call('POST', '/api/usr', { routes: [{ id: 42 }] })).status).toBe(400);
-    expect((await h.call('POST', '/api/usr', { routes: [{ id: 'x', name: 5 }] })).status).toBe(400);
+    expect((await h.call('POST', '/api/export', undefined)).status).toBe(400);
+    expect((await h.call('POST', '/api/export', { routes: [] })).status).toBe(400);
+    expect((await h.call('POST', '/api/export', { routes: [{ id: 42 }] })).status).toBe(400);
+    expect((await h.call('POST', '/api/export', { routes: [{ id: 'x', name: 5 }] })).status).toBe(
+      400,
+    );
     expect(h.engine.buildUsr).not.toHaveBeenCalled();
   });
 
   it('rejects unknown, mirrored, and invalid routes', async () => {
     const h = harness();
-    expect((await h.call('POST', '/api/usr', { routes: [{ id: 'nope' }] })).status).toBe(404);
-    expect((await h.call('POST', '/api/usr', { routes: [{ id: 'r-mirrored' }] })).status).toBe(400);
-    expect((await h.call('POST', '/api/usr', { routes: [{ id: 'r-invalid' }] })).status).toBe(400);
+    expect((await h.call('POST', '/api/export', { routes: [{ id: 'nope' }] })).status).toBe(404);
+    expect((await h.call('POST', '/api/export', { routes: [{ id: 'r-mirrored' }] })).status).toBe(
+      400,
+    );
+    expect((await h.call('POST', '/api/export', { routes: [{ id: 'r-invalid' }] })).status).toBe(
+      400,
+    );
     expect(h.engine.buildUsr).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/export with format gpx builds GPX without touching the engine', async () => {
+    const h = harness();
+    const reply = await h.call('POST', '/api/export', {
+      routes: [{ id: 'r-foreign', name: 'Savusavu' }],
+      format: 'gpx',
+    });
+    expect(reply.status).toBe(200);
+    expect(reply.headers['content-type']).toBe('application/gpx+xml');
+    expect(reply.headers['content-disposition']).toBe(
+      'attachment; filename="signalk-routes-2026-07-16T10-30-00.gpx"',
+    );
+    const gpx = reply.body!.toString();
+    expect(gpx).toContain('<name>Savusavu</name>');
+    expect(gpx).toContain('lat="-17.10000000" lon="178.10000000"');
+    expect(h.engine.buildUsr).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/export with format gpx keeps full-length names', async () => {
+    const h = harness();
+    const reply = await h.call('POST', '/api/export', {
+      routes: [{ id: 'r-foreign' }],
+      format: 'gpx',
+    });
+    // 'Passage to Savusavu Bay' is 23 chars — past the 16-char MFD cap.
+    expect(reply.body!.toString()).toContain('<name>Passage to Savusavu Bay</name>');
+  });
+
+  it('POST /api/export with format gpx works while the plugin is not running', async () => {
+    const h = harness({ getEngine: () => undefined });
+    const reply = await h.call('POST', '/api/export', {
+      routes: [{ id: 'r-foreign' }],
+      format: 'gpx',
+    });
+    expect(reply.status).toBe(200);
+    expect(reply.body!.toString()).toContain('<rte>');
+  });
+
+  it('GET /api/backup?format=gpx converts the MFD database to GPX', async () => {
+    const h = harness();
+    h.engine.backupNow.mockResolvedValueOnce(
+      buildUsr({
+        waypoints: [
+          { uuid: synthUuid(1), name: 'ANCHORAGE', lonMm: 100_000, latMm: 200_000 },
+          { uuid: synthUuid(2), name: 'PASSAGE 01', lonMm: 300_000, latMm: 400_000 },
+        ],
+        routes: [{ uuid: synthUuid(9), name: 'PASSAGE', legUuids: [synthUuid(2)] }],
+      }),
+    );
+    const reply = await h.call('GET', '/api/backup', undefined, { format: 'gpx' });
+    expect(reply.status).toBe(200);
+    expect(reply.headers['content-type']).toBe('application/gpx+xml');
+    expect(reply.headers['content-disposition']).toBe(
+      'attachment; filename="navico-routes-2026-07-16T10-30-00.gpx"',
+    );
+    const gpx = reply.body!.toString();
+    expect(gpx).toContain('<name>ANCHORAGE</name>'); // free-standing → <wpt>
+    expect(gpx).toContain('<name>PASSAGE</name>');
+    expect(gpx).toContain('<rtept'); // leg with its waypoint name
+    expect(gpx).toContain('<name>PASSAGE 01</name>');
+  });
+
+  it('rejects unknown formats with 400', async () => {
+    const h = harness();
+    const backup = await h.call('GET', '/api/backup', undefined, { format: 'kml' });
+    expect(backup.status).toBe(400);
+    const selection = await h.call('POST', '/api/export', {
+      routes: [{ id: 'r-foreign' }],
+      format: 'kml',
+    });
+    expect(selection.status).toBe(400);
+    expect(h.engine.buildUsr).not.toHaveBeenCalled();
+    expect(h.engine.backupNow).not.toHaveBeenCalled();
   });
 
   it('POST /api/upload pushes the selection through the engine', async () => {

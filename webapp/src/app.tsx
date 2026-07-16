@@ -1,7 +1,7 @@
 /**
  * Navico Routes webapp: pick SignalK routes (from other providers) and send
- * them to the MFD, download them as a USR file, trigger a manual MFD sync,
- * or download a full MFD backup. Served by the SignalK server at
+ * them to the MFD, download them as a USR or GPX file, trigger a manual MFD
+ * sync, or download the MFD's routes. Served by the SignalK server at
  * /signalk-navico-routes; talks to the plugin API under
  * /plugins/signalk-navico-routes.
  *
@@ -44,6 +44,11 @@ interface Status {
   text: string;
 }
 
+type ExportFormat = 'usr' | 'gpx';
+
+/** Which download button opened the format modal; null = closed. */
+type FormatTarget = 'mfd' | 'selected' | null;
+
 function initialTheme(): Theme {
   const prefersDark = Boolean(
     window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -64,6 +69,7 @@ function App() {
   const [status, setStatus] = useState<Status | null>(null);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [formatTarget, setFormatTarget] = useState<FormatTarget>(null);
 
   useEffect(() => {
     document.documentElement.className = theme === 'night' ? 'theme-night' : 'theme-day';
@@ -123,8 +129,13 @@ function App() {
     setSelected(next);
   };
 
-  const selectionPayload = () => ({
-    routes: selectedRows.map((row) => ({ id: row.id, name: nameFor(row) })),
+  // GPX keeps the full SignalK name unless the user renamed the route in
+  // the table; USR/upload names go through the MFD-capped name inputs.
+  const selectionPayload = (format: ExportFormat = 'usr') => ({
+    routes: selectedRows.map((row) => ({
+      id: row.id,
+      name: format === 'gpx' ? (names[row.id] ?? row.name) : nameFor(row),
+    })),
   });
 
   const run = (label: string, op: () => Promise<string>, reloadAfter = false) => {
@@ -160,17 +171,30 @@ function App() {
       true,
     );
 
-  const downloadBackup = () =>
-    run('Downloading MFD backup', async () => {
-      const filename = await downloadFile('/api/backup');
-      return 'MFD backup saved as ' + filename + '.';
+  const downloadMfdRoutes = (format: ExportFormat) =>
+    run('Downloading MFD routes', async () => {
+      const filename = await downloadFile('/api/backup?format=' + format);
+      return 'MFD routes saved as ' + filename + '.';
     });
 
-  const downloadUsr = () =>
-    run('Building USR file', async () => {
-      const filename = await downloadFile('/api/usr', selectionPayload());
+  const downloadSelected = (format: ExportFormat) =>
+    run('Building ' + format.toUpperCase() + ' file', async () => {
+      const filename = await downloadFile('/api/export', {
+        ...selectionPayload(format),
+        format,
+      });
       return selectedRows.length + ' route(s) saved as ' + filename + '.';
     });
+
+  const pickFormat = (format: ExportFormat) => {
+    const target = formatTarget;
+    setFormatTarget(null);
+    if (target === 'mfd') {
+      downloadMfdRoutes(format);
+    } else if (target === 'selected') {
+      downloadSelected(format);
+    }
+  };
 
   const uploadToMfd = () => {
     const ok = window.confirm(
@@ -208,8 +232,8 @@ function App() {
       showSync={syncEnabled}
       selectedCount={selectedRows.length}
       onSync={syncFromMfd}
-      onBackup={downloadBackup}
-      onUsr={downloadUsr}
+      onMfdRoutes={() => setFormatTarget('mfd')}
+      onSelected={() => setFormatTarget('selected')}
       onUpload={uploadToMfd}
     />
   );
@@ -221,7 +245,7 @@ function App() {
           <h1>Navico Routes</h1>
           <p class="subtitle">
             SignalK routes that are not yet mirrored from the MFD. Select routes to send them to the
-            MFD or export them as a USR file.
+            MFD or download them as a USR or GPX file.
           </p>
           {lastSynced && <p class="last-sync">Last synced {lastSynced}</p>}
         </div>
@@ -352,6 +376,18 @@ function App() {
 
       {status && <div class={'status status-' + status.kind}>{status.text}</div>}
 
+      {formatTarget && (
+        <FormatModal
+          title={
+            formatTarget === 'mfd'
+              ? 'Download MFD routes'
+              : 'Download ' + selectedRows.length + ' selected route(s)'
+          }
+          onPick={pickFormat}
+          onCancel={() => setFormatTarget(null)}
+        />
+      )}
+
       <footer class="footer">
         <a href={'https://www.npmjs.com/package/' + PLUGIN_ID} target="_blank" rel="noreferrer">
           {PLUGIN_ID + (uiConfig ? ' v' + uiConfig.version : '')}
@@ -387,8 +423,8 @@ function Toolbar(props: {
   showSync: boolean;
   selectedCount: number;
   onSync: () => void;
-  onBackup: () => void;
-  onUsr: () => void;
+  onMfdRoutes: () => void;
+  onSelected: () => void;
   onUpload: () => void;
 }) {
   const none = props.selectedCount === 0;
@@ -399,12 +435,12 @@ function Toolbar(props: {
           Sync MFD → SignalK
         </button>
       )}
-      <button type="button" class="btn" disabled={props.busy} onClick={props.onBackup}>
-        Download MFD backup
+      <button type="button" class="btn" disabled={props.busy} onClick={props.onMfdRoutes}>
+        Download MFD routes
       </button>
       <span class="toolbar-spacer" />
-      <button type="button" class="btn" disabled={props.busy || none} onClick={props.onUsr}>
-        Download selected as USR
+      <button type="button" class="btn" disabled={props.busy || none} onClick={props.onSelected}>
+        Download selected
       </button>
       <button
         type="button"
@@ -414,6 +450,36 @@ function Toolbar(props: {
       >
         Send selected to MFD
       </button>
+    </div>
+  );
+}
+
+function FormatModal(props: {
+  title: string;
+  onPick: (format: ExportFormat) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div class="modal-overlay" onClick={props.onCancel}>
+      <div class="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <h2 class="modal-title">{props.title}</h2>
+        <p class="modal-text">Choose a file format:</p>
+        <div class="modal-formats">
+          <button type="button" class="btn modal-format" onClick={() => props.onPick('usr')}>
+            <span class="modal-format-name">USR</span>
+            <span class="modal-format-hint">Navico MFD import/backup</span>
+          </button>
+          <button type="button" class="btn modal-format" onClick={() => props.onPick('gpx')}>
+            <span class="modal-format-name">GPX</span>
+            <span class="modal-format-hint">Works with most chart software</span>
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onClick={props.onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
