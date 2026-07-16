@@ -72,7 +72,7 @@ itself.
 | `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                 |
 | `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD         |
 | `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints             |
-| `pollIntervalSeconds`   | `60`    | USR download cadence (min 15)                  |
+| `pollIntervalSeconds`   | `300`   | USR download cadence (min 15)                  |
 
 ## Sync semantics
 

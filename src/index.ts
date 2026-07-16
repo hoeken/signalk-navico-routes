@@ -62,7 +62,7 @@ const CONFIG_SCHEMA = {
       type: 'number',
       title: 'Poll interval (seconds)',
       description: 'How often to download the USR file from the MFD. Minimum 15.',
-      default: 60,
+      default: 300,
       minimum: 15,
     },
   },
@@ -95,7 +95,7 @@ export = function createPlugin(app: SignalKApp): Plugin {
         syncRoutes: options.syncRoutes ?? true,
         syncVisibleRoutesOnly: options.syncVisibleRoutesOnly ?? true,
         syncWaypoints: options.syncWaypoints ?? true,
-        pollIntervalSeconds: Math.max(15, options.pollIntervalSeconds ?? 60),
+        pollIntervalSeconds: Math.max(15, options.pollIntervalSeconds ?? 300),
       };
 
       if (!config.mfdAddress) {
