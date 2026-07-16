@@ -269,19 +269,16 @@ tr.row-selected:hover {
   width: 40%;
 }
 
+/* Always styled as an input so users can tell the name is editable. */
 .name-input {
   width: 100%;
   min-width: 12em;
   padding: 5px 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: transparent;
+  background: var(--bg);
   color: var(--text);
   font: inherit;
-}
-
-.name-input:hover {
-  border-color: var(--border);
 }
 
 .name-input:focus {

@@ -5,8 +5,6 @@
 - readme -> user facing
 - readme -> split out developer stuff in to separate doc
 
-- route names should show as a text input at all times so the user knows it is editable.
-
 Webapp changes:
 - admin UI -> React UI
   - MFD -> SK specific options nested
