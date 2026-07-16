@@ -17,7 +17,6 @@ import { IdMap } from './id-map';
 import { MfdClient } from './mfd-client';
 import { ResourceStore } from './resource-store';
 import { SyncEngine } from './sync-engine';
-import { UsrArchive } from './usr-archive';
 import { UsrCache } from './usr-cache';
 import { registerApiRoutes } from './webapp-api';
 import { PLUGIN_ID } from './types';
@@ -125,14 +124,12 @@ export = function createPlugin(app: SignalKApp): Plugin {
       const idMap = IdMap.load(dataDir);
       const client = new MfdClient(config.mfdAddress);
       const cache = new UsrCache(join(dataDir, 'last-sync.usr'));
-      const archive = new UsrArchive(join(dataDir, 'archive'));
 
       engine = new SyncEngine(config, {
         client,
         store,
         idMap,
         cache,
-        archive,
         emitDelta: (type, id, value) => {
           const delta: Delta = {
             updates: [{ values: [{ path: `resources.${type}.${id}`, value }] }],

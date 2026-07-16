@@ -35,7 +35,6 @@ interface SyncResult {
 
 interface UploadResult {
   routes: number;
-  archivedTo: string;
   nameAdjustments: { type: string; original: string; adjusted: string }[];
 }
 
@@ -201,8 +200,7 @@ function App() {
       'Send ' +
         selectedRows.length +
         ' route(s) to the MFD?\n\n' +
-        'Uploads only add records on the MFD — they never overwrite or delete. ' +
-        'A backup of the current MFD database is archived first.',
+        'Uploads only add records on the MFD — they never overwrite or delete.',
     );
     if (!ok) {
       return;

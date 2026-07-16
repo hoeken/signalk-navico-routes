@@ -150,7 +150,8 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
     }),
   );
 
-  // Push the selected SignalK routes to the MFD (archives a backup first).
+  // Push the selected SignalK routes to the MFD (additive: nothing on the
+  // MFD is overwritten or deleted, so no prior sync or backup is needed).
   router.post(
     '/api/upload',
     wrap(async (req, res) => {

@@ -47,9 +47,9 @@ sortable, searchable table, and lets you:
   or as a `.gpx` file of its routes and free-standing waypoints.
 - **Download selected** — export the selected SignalK routes as a USR v6
   file (e.g. to import on another Navico chartplotter) or as GPX.
-- **Send selected to MFD** — upload the selected routes to the MFD. The
-  plugin archives a fresh backup of the MFD database first (in the plugin
-  data directory under `archive/`), and afterwards leaves the pushed routes
+- **Send selected to MFD** — upload the selected routes to the MFD. Uploads
+  are additive (they never overwrite or delete anything on the MFD), so the
+  routes are sent directly; afterwards the plugin leaves the pushed routes
   to their owning provider instead of mirroring a duplicate back.
 
 Route names are editable in the table and capped at 16 characters (the MFD

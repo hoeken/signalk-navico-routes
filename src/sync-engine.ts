@@ -7,9 +7,10 @@
  * SignalK → MFD transfer is deliberately NOT automatic. Uploading a USR
  * file only *adds* records on the MFD (it neither overwrites nor deletes
  * existing ones), so a bidirectional mirror cannot converge. Uploads are a
- * manual, user-driven operation through the webapp: `uploadToMfd` archives
- * a fresh backup, pushes the selected routes, and suppresses their mirrored
- * copies so the round trip does not duplicate them in SignalK.
+ * manual, user-driven operation through the webapp: `uploadToMfd` pushes
+ * the selected routes directly — additive uploads are safe, so no prior
+ * sync or backup is needed — and suppresses their mirrored copies so the
+ * round trip does not duplicate them in SignalK.
  *
  * All MFD I/O — polls and manual operations alike — runs through a single
  * promise chain, so operations never overlap.
@@ -41,8 +42,6 @@ export interface SyncEngineDeps {
   idMap: IdMap;
   /** Last-good-download cache, served on start before the first poll. */
   cache: { load(): Promise<Buffer | undefined>; save(usr: Buffer): Promise<void> };
-  /** Pre-upload backups of the MFD database (uploads erase trails). */
-  archive: { archive(usr: Buffer): Promise<string> };
   /** Emit a SignalK resource delta (value null = deleted). */
   emitDelta(type: ResourceType, id: string, value: Resource | null): void;
   log: Logger;
@@ -69,8 +68,6 @@ export interface BuiltUsr {
 export interface UploadResult {
   /** Number of routes pushed to the MFD. */
   routes: number;
-  /** Path of the pre-upload backup written to the plugin data directory. */
-  archivedTo: string;
   nameAdjustments: NameAdjustment[];
 }
 
@@ -292,23 +289,20 @@ export class SyncEngine {
   }
 
   /**
-   * Push the given SignalK routes to the MFD: archive a fresh backup of the
-   * MFD database first (uploads erase trails), then upload and re-mirror.
+   * Push the given SignalK routes to the MFD. Uploads are additive (they
+   * never overwrite or delete records on the MFD), so the routes go up
+   * directly with no surrounding sync: we already know what we uploaded,
+   * and the routes are marked suppressed, so the next regular poll leaves
+   * them to their owning provider.
    */
   uploadToMfd(routes: Map<string, RouteResource>): Promise<UploadResult> {
     return this.enqueueResult(async () => {
       try {
         this.deps.setStatus(`uploading ${routes.size} route(s) to MFD`);
-        const { buf } = await this.pollOnce();
-        const archivedTo = await this.deps.archive.archive(buf);
         const { bytes, nameAdjustments } = this.buildUsr(routes);
         await this.deps.client.upload(bytes);
-        const { counts } = await this.pollOnce();
-        this.deps.setStatus(
-          `uploaded ${routes.size} route(s) to MFD; ` +
-            `synced ${counts.waypoints} waypoints, ${counts.routes} routes back`,
-        );
-        return { routes: routes.size, archivedTo, nameAdjustments };
+        this.deps.setStatus(`uploaded ${routes.size} route(s) to MFD`);
+        return { routes: routes.size, nameAdjustments };
       } catch (err) {
         this.reportUnreachable(err);
         throw err;

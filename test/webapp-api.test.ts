@@ -57,7 +57,6 @@ function harness(overrides: Partial<WebappApiDeps> = {}) {
     buildUsr: vi.fn(() => ({ bytes: Buffer.from('USR-BUILT'), nameAdjustments: [] })),
     uploadToMfd: vi.fn(async (routes: Map<string, RouteResource>) => ({
       routes: routes.size,
-      archivedTo: '/data/archive/usr-1.usr',
       nameAdjustments: [],
     })),
   };
@@ -306,7 +305,6 @@ describe('webapp api', () => {
     expect(reply.status).toBe(200);
     expect(reply.json).toEqual({
       routes: 1,
-      archivedTo: '/data/archive/usr-1.usr',
       nameAdjustments: [],
     });
     const routes = h.engine.uploadToMfd.mock.calls[0]![0];

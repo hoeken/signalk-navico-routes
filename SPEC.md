@@ -41,8 +41,8 @@ Grounded in the findings of [research/NOTES.md](research/NOTES.md):
 
 ## 2. Non-goals
 
-- **Trails** are not synchronized (see §7 Known limitations — they are _lost_
-  on upload; a backup mechanism mitigates this).
+- **Trails** are not synchronized (uploads are additive and leave them
+  untouched).
 - No MFD auto-discovery in v1 (GoFree multicast discovery is a possible later
   enhancement); the MFD is addressed by a single configured IP.
 - No web app / UI beyond the standard SignalK plugin config screen.
@@ -210,11 +210,11 @@ Either channel schedules an upload through the **throttle**:
 
 Upload procedure:
 
-1. Ensure a fresh USR download has been archived by `UsrArchive` (safety
-   backup — uploads destroy trails, §Known limitations).
-2. Serialize **the union of the `ResourceStore` and all foreign
-   routes/waypoints** to USR v6 and `POST upload.cgi`.
-3. On HTTP success, keep pending-edit ledger entries until **confirmed**: a
+1. Serialize **the union of the `ResourceStore` and all foreign
+   routes/waypoints** to USR v6 and `POST upload.cgi`. Uploads are additive
+   (`upload.cgi` only adds records), so no pre-upload sync or backup is
+   needed.
+2. On HTTP success, keep pending-edit ledger entries until **confirmed**: a
    subsequent download whose content matches the pending edit clears its entry.
 
 If `syncToMfd` is disabled, the `ResourceWatcher` is not started;
@@ -384,7 +384,6 @@ src/
   mfd-client.ts
   resource-store.ts
   sync-engine.ts
-  usr-archive.ts
 test/               # mirrors src/, plus fixtures/
 docs/usr-v6-format.md
 scripts/            # hardware smoke test
@@ -412,10 +411,10 @@ scripts/            # hardware smoke test
 
 ## 13. Known limitations (v1, documented in README)
 
-1. **Uploads erase trails** — the regenerated USR contains only routes and
-   waypoints, and `upload.cgi` replaces the whole DB. Mitigation: `UsrArchive`
-   keeps timestamped backups of downloaded USR files that can be re-uploaded
-   via the MFD's own web page to restore trails.
+1. **Uploads are additive** — `upload.cgi` only adds records, never
+   overwrites or deletes. Nothing on the MFD (including trails) is at risk
+   from an upload, but records cannot be updated or removed through it
+   either.
 2. Pending-edit ledger is in-memory; a restart re-asserts MFD state.
 3. Single static MFD IP; no auto-discovery, no multi-MFD failover.
 4. SignalK-only resources (with `syncToMfd` off) are transient and subject to

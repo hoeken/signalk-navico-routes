@@ -44,7 +44,6 @@ function harness(configOverrides: Partial<SyncEngineConfig> = {}, cachedUsr?: Bu
   const deltas: { type: ResourceType; id: string; value: Resource | null }[] = [];
   const errors: string[] = [];
   const uploads: Buffer[] = [];
-  const archived: Buffer[] = [];
 
   const client = {
     download: vi.fn(async () => mfd.buf),
@@ -65,12 +64,6 @@ function harness(configOverrides: Partial<SyncEngineConfig> = {}, cachedUsr?: Bu
           cached.buf = buf;
         },
       },
-      archive: {
-        archive: async (buf: Buffer) => {
-          archived.push(buf);
-          return `/data/archive/usr-${archived.length}.usr`;
-        },
-      },
       emitDelta: (type, id, value) => deltas.push({ type, id, value }),
       log: { debug: () => undefined, error: (msg) => errors.push(msg) },
       setStatus: () => undefined,
@@ -78,7 +71,7 @@ function harness(configOverrides: Partial<SyncEngineConfig> = {}, cachedUsr?: Bu
     },
   );
 
-  return { engine, store, idMap, mfd, deltas, errors, client, cached, uploads, archived };
+  return { engine, store, idMap, mfd, deltas, errors, client, cached, uploads };
 }
 
 async function settle(ms: number) {
@@ -466,13 +459,14 @@ describe('manual operations (webapp)', () => {
     await h.engine.stop();
   });
 
-  it('uploadToMfd archives a backup, uploads, and suppresses the mirrored copy', async () => {
+  it('uploadToMfd uploads directly and suppresses the mirrored copy', async () => {
     const h = harness();
     h.engine.start();
     await settle(0);
     await h.engine.flush();
     expect(h.store.ids('routes')).toHaveLength(1);
     expect(h.store.ids('waypoints')).toHaveLength(1);
+    const downloadsBefore = h.client.download.mock.calls.length;
 
     // The MFD merges uploads additively into its database.
     h.client.upload.mockImplementation(async (buf: Buffer) => {
@@ -489,14 +483,15 @@ describe('manual operations (webapp)', () => {
 
     const result = await h.engine.uploadToMfd(new Map([['sk-route-1', FOREIGN_ROUTE]]));
     expect(result.routes).toBe(1);
-    expect(result.archivedTo).toMatch(/archive/);
-    expect(h.archived).toHaveLength(1);
     expect(h.uploads).toHaveLength(1);
-    // The pre-upload backup is the database as it was before the upload.
-    expect(parseUsr(h.archived[0]!).routes).toHaveLength(1);
+    // Uploads are additive and we already know what we sent: no download
+    // happens before or after the upload.
+    expect(h.client.download.mock.calls.length).toBe(downloadsBefore);
 
-    // The post-upload mirror sees the pushed route on the MFD but leaves it
+    // The next regular poll sees the pushed route on the MFD but leaves it
     // to its owning provider: no duplicate appears in our store.
+    await settle(CONFIG.pollIntervalSeconds * 1000);
+    await h.engine.flush();
     expect(parseUsr(h.mfd.buf).routes).toHaveLength(2);
     expect(h.store.ids('routes')).toHaveLength(1);
     expect(Object.values(h.store.list('routes'))[0]!.name).toBe('SAVUSAVU 2 NANAK');
@@ -504,14 +499,13 @@ describe('manual operations (webapp)', () => {
     await h.engine.stop();
   });
 
-  it('uploadToMfd rejects (and does not upload) when the backup download fails', async () => {
+  it('uploadToMfd rejects when the upload fails', async () => {
     const h = harness();
-    h.client.download.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    h.client.upload.mockRejectedValueOnce(new Error('ECONNREFUSED'));
     await expect(h.engine.uploadToMfd(new Map([['sk-route-1', FOREIGN_ROUTE]]))).rejects.toThrow(
       'ECONNREFUSED',
     );
-    expect(h.uploads).toHaveLength(0);
-    expect(h.archived).toHaveLength(0);
+    expect(h.client.download).not.toHaveBeenCalled();
     await h.engine.stop();
   });
 });
