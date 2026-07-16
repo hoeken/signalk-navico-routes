@@ -81,10 +81,8 @@ body {
   max-width: 620px;
 }
 
-.last-sync {
-  margin: 4px 0 0;
-  color: var(--text-dim);
-  font-size: 13px;
+.theme-icon {
+  vertical-align: -2px;
 }
 
 .theme-toggle {
@@ -263,6 +261,12 @@ tr.row-selected:hover {
 .col-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 600px) {
+  .col-num {
+    display: none;
+  }
 }
 
 .col-name {

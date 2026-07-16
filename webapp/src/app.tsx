@@ -231,12 +231,12 @@ function App() {
     <div class="app">
       <header class="header">
         <div>
-          <h1>Navico Routes</h1>
+          <h1>Navico Route Sync</h1>
           <p class="subtitle">
-            SignalK routes that are not yet mirrored from the MFD. Select routes to send them to the
-            MFD or download them as a USR or GPX file.
+            Syncing MFD → SignalK keeps your MFD routes separate and won't affect your existing
+            SignalK routes. Syncing SignalK → MFD is additive only — to modify an existing route,
+            delete it from the MFD first.
           </p>
-          {lastSynced && <p class="last-sync">Last synced {lastSynced}</p>}
         </div>
         <button
           type="button"
@@ -244,7 +244,8 @@ function App() {
           onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}
           title="Switch theme (this page only)"
         >
-          {theme === 'day' ? '☾ Night' : '☀ Day'}
+          {theme === 'day' ? <MoonIcon /> : <SunIcon />}
+          {theme === 'day' ? ' Night' : ' Day'}
         </button>
       </header>
 
@@ -369,7 +370,7 @@ function App() {
         <FormatModal
           title={
             formatTarget === 'mfd'
-              ? 'Download MFD routes'
+              ? 'Download MFD Routes'
               : 'Download ' + selectedRows.length + ' selected route(s)'
           }
           onPick={pickFormat}
@@ -381,6 +382,7 @@ function App() {
         <a href={'https://www.npmjs.com/package/' + PLUGIN_ID} target="_blank" rel="noreferrer">
           {PLUGIN_ID + (uiConfig ? ' v' + uiConfig.version : '')}
         </a>
+        {lastSynced && <span> — Last synced {lastSynced}</span>}
       </footer>
     </div>
   );
@@ -406,6 +408,52 @@ function SortHeader(props: {
   );
 }
 
+function MoonIcon() {
+  return (
+    <svg
+      class="theme-icon"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg
+      class="theme-icon"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  );
+}
+
 function Toolbar(props: {
   busy: boolean;
   /** False when MFD → SignalK sync is disabled in the plugin config. */
@@ -425,11 +473,11 @@ function Toolbar(props: {
         </button>
       )}
       <button type="button" class="btn" disabled={props.busy} onClick={props.onMfdRoutes}>
-        Download MFD routes
+        Download MFD Routes
       </button>
       <span class="toolbar-spacer" />
       <button type="button" class="btn" disabled={props.busy || none} onClick={props.onSelected}>
-        Download selected
+        Download Selected
       </button>
       <button
         type="button"
@@ -437,7 +485,7 @@ function Toolbar(props: {
         disabled={props.busy || none}
         onClick={props.onUpload}
       >
-        Send selected to MFD
+        Sync Selected → MFD
       </button>
     </div>
   );
