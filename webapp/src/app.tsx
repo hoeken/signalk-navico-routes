@@ -231,7 +231,7 @@ function App() {
     <div class="app">
       <header class="header">
         <div>
-          <h1>Navico Route Sync</h1>
+          <h1>SignalK ↔ Navico Route Sync</h1>
           <p class="subtitle">
             Syncing MFD → SignalK keeps your MFD routes separate and won't affect your existing
             SignalK routes. Syncing SignalK → MFD is additive only — to modify an existing route,
