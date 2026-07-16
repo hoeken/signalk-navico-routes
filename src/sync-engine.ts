@@ -81,6 +81,8 @@ export class SyncEngine {
   private mfdUnreachable = false;
   /** Most recent successfully parsed MFD database (download or cache). */
   private lastDb?: UsrDatabase;
+  /** Raw bytes behind lastDb, served for cached backups. */
+  private lastBuf?: Buffer;
 
   constructor(
     private readonly config: SyncEngineConfig,
@@ -141,6 +143,7 @@ export class SyncEngine {
     try {
       const db = parseUsr(buf);
       this.lastDb = db;
+      this.lastBuf = buf;
       const counts = this.mirror(db);
       this.deps.setStatus(
         `serving ${counts.waypoints} waypoints, ${counts.routes} routes from cache; waiting for MFD sync`,
@@ -186,6 +189,7 @@ export class SyncEngine {
     this.reportReachable();
     await this.saveToCache(buf);
     this.lastDb = db;
+    this.lastBuf = buf;
     return { buf, counts: this.mirror(db) };
   }
 
@@ -209,6 +213,17 @@ export class SyncEngine {
         }
       }
     });
+  }
+
+  /**
+   * USR bytes for a user-facing backup: the last good download when one is
+   * cached (instant), otherwise a fresh (slow) download from the MFD.
+   */
+  backupNow(): Promise<Buffer> {
+    if (this.lastBuf) {
+      return Promise.resolve(this.lastBuf);
+    }
+    return this.downloadNow();
   }
 
   /** Fresh USR download for a user-facing backup (also mirrored, as a poll). */

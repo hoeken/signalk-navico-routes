@@ -91,11 +91,12 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
     }),
   );
 
-  // Fresh download of the MFD's full user database, as a browser download.
+  // The MFD's full user database, as a browser download. Served from the
+  // last good download when cached; fetched fresh from the MFD otherwise.
   router.get(
     '/api/backup',
     wrap(async (_req, res) => {
-      const buf = await engine().downloadNow();
+      const buf = await engine().backupNow();
       sendUsr(res, buf, `navico-backup-${fileStamp(now())}.usr`);
     }),
   );

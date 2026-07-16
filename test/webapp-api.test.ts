@@ -43,7 +43,7 @@ interface Reply {
 function harness(overrides: Partial<WebappApiDeps> = {}) {
   const engine = {
     syncNow: vi.fn(async () => ({ waypoints: 2, routes: 1 })),
-    downloadNow: vi.fn(async () => Buffer.from('USR-BACKUP')),
+    backupNow: vi.fn(async () => Buffer.from('USR-BACKUP')),
     buildUsr: vi.fn(() => ({ bytes: Buffer.from('USR-BUILT'), nameAdjustments: [] })),
     uploadToMfd: vi.fn(async (routes: Map<string, RouteResource>) => ({
       routes: routes.size,

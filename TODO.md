@@ -5,6 +5,18 @@
 - readme -> user facing
 - readme -> split out developer stuff in to separate doc
 
+- add a /ui-config route with json data for the UI to load
+  - plugin version #
+  - sync boolean config options
+  - last mfd -> sk sync time
+- load the /ui-config on page load
+  - show plugin name + version and link it to our npm module in the footer.
+  - use the booleans to enable/disable functionality as appropriate.  hide the relevant UI
+
+- Download MFD Backup -> Download MFD Routes
+- Download Selected as USR -> Download Selected
+- both buttons should pop up a modal where the user can select the format:  USR or .gpx file
+
 - admin UI -> React UI
   - MFD -> SK specific options nested
   - specific options should enable based on if the parent option is enabled.

@@ -407,6 +407,37 @@ describe('manual operations (webapp)', () => {
     await h.engine.stop();
   });
 
+  it('backupNow serves the last good download without contacting the MFD', async () => {
+    const h = harness();
+    const downloaded = await h.engine.downloadNow();
+    h.mfd.buf = buildUsr({ waypoints: [WP_C], routes: [] });
+
+    const buf = await h.engine.backupNow();
+    expect(buf.equals(downloaded)).toBe(true);
+    expect(h.client.download).toHaveBeenCalledTimes(1);
+    await h.engine.stop();
+  });
+
+  it('backupNow serves the startup cache before the first poll', async () => {
+    const cached = buildUsr({ waypoints: [WP_C], routes: [] });
+    const h = harness({}, cached);
+    h.engine.start();
+    await h.engine.flush();
+
+    const buf = await h.engine.backupNow();
+    expect(buf.equals(cached)).toBe(true);
+    expect(h.client.download).not.toHaveBeenCalled();
+    await h.engine.stop();
+  });
+
+  it('backupNow downloads from the MFD when nothing is cached', async () => {
+    const h = harness({ syncFromMfd: false });
+    const buf = await h.engine.backupNow();
+    expect(buf.equals(h.mfd.buf)).toBe(true);
+    expect(h.client.download).toHaveBeenCalledTimes(1);
+    await h.engine.stop();
+  });
+
   it('buildUsr emits exactly the selected routes, with stable identity', async () => {
     const h = harness();
     const routes = new Map([['sk-route-1', FOREIGN_ROUTE]]);
