@@ -230,23 +230,23 @@ function App() {
   return (
     <div class="app">
       <header class="header">
-        <div>
+        <div class="header-row">
           <h1>SignalK ↔ Navico Route Sync</h1>
-          <p class="subtitle">
-            Syncing MFD → SignalK keeps your MFD routes separate and won't affect your existing
-            SignalK routes. Syncing SignalK → MFD is additive only — to modify an existing route,
-            delete it from the MFD first.
-          </p>
+          <button
+            type="button"
+            class="btn btn-ghost theme-toggle"
+            onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}
+            title="Switch theme (this page only)"
+          >
+            {theme === 'day' ? <MoonIcon /> : <SunIcon />}
+            {theme === 'day' ? ' Night' : ' Day'}
+          </button>
         </div>
-        <button
-          type="button"
-          class="btn btn-ghost theme-toggle"
-          onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}
-          title="Switch theme (this page only)"
-        >
-          {theme === 'day' ? <MoonIcon /> : <SunIcon />}
-          {theme === 'day' ? ' Night' : ' Day'}
-        </button>
+        <p class="subtitle">
+          Syncing MFD → SignalK keeps your MFD routes separate and won't affect your existing
+          SignalK routes. Syncing SignalK → MFD is additive only — to modify an existing route,
+          delete it from the MFD first.
+        </p>
       </header>
 
       {toolbar}
@@ -468,20 +468,30 @@ function Toolbar(props: {
   return (
     <div class="toolbar">
       {props.showSync && (
-        <button type="button" class="btn" disabled={props.busy} onClick={props.onSync}>
+        <button type="button" class="btn btn-sync-mfd" disabled={props.busy} onClick={props.onSync}>
           Sync MFD → SignalK
         </button>
       )}
-      <button type="button" class="btn" disabled={props.busy} onClick={props.onMfdRoutes}>
+      <button
+        type="button"
+        class="btn btn-dl-mfd"
+        disabled={props.busy}
+        onClick={props.onMfdRoutes}
+      >
         Download MFD Routes
       </button>
       <span class="toolbar-spacer" />
-      <button type="button" class="btn" disabled={props.busy || none} onClick={props.onSelected}>
+      <button
+        type="button"
+        class="btn btn-dl-selected"
+        disabled={props.busy || none}
+        onClick={props.onSelected}
+      >
         Download Selected
       </button>
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-primary btn-sync-selected"
         disabled={props.busy || none}
         onClick={props.onUpload}
       >

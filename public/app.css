@@ -49,7 +49,13 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.45 -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font:
+    15px/1.45 -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
 }
 
 .app {
@@ -61,10 +67,13 @@ body {
 /* ── Header ─────────────────────────────────────────────────────────────── */
 
 .header {
+  margin-bottom: 16px;
+}
+
+.header-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 16px;
 }
 
 .header h1 {
@@ -74,6 +83,7 @@ body {
   letter-spacing: 0.2px;
 }
 
+/* Full-width row below the title/theme-toggle row. */
 .subtitle {
   margin: 0;
   color: var(--text-dim);
@@ -141,6 +151,34 @@ body {
   border-color: transparent;
   background: transparent;
   color: var(--text-dim);
+}
+
+/* On small screens the toolbar becomes a 2×2 grid: sync buttons on the top
+   row, download buttons on the bottom (flex `order` reorders the DOM). */
+@media (max-width: 600px) {
+  .toolbar-spacer {
+    display: none;
+  }
+
+  .toolbar .btn {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .btn-sync-mfd {
+    order: 1;
+  }
+
+  .btn-sync-selected {
+    order: 2;
+  }
+
+  .btn-dl-mfd {
+    order: 3;
+  }
+
+  .btn-dl-selected {
+    order: 4;
+  }
 }
 
 /* ── Search row ─────────────────────────────────────────────────────────── */
