@@ -1,5 +1,13 @@
 # signalk-navico-routes — status
 
+- icon
+- screenshots
+- readme -> user facing
+- readme -> split out developer stuff in to separate doc
+- admin UI -> React UI
+  - MFD -> SK specific options nested
+  - specific options should enable based on if the parent option is enabled.
+
 ## Remaining hardware validation
 
 - [ ] Confirm the true name-length limit on hardware (codec currently truncates at 32 chars; MFD files contain up to 24).

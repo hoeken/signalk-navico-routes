@@ -83,7 +83,7 @@ export = function createPlugin(app: SignalKApp): Plugin {
 
   const plugin: Plugin = {
     id: PLUGIN_ID,
-    name: 'Navico routes & waypoints',
+    name: 'Navico Route Sync',
     description:
       'Mirror routes and waypoints from Navico MFDs (B&G/Simrad/Lowrance) into SignalK via GoFree USR file transfer',
     schema: CONFIG_SCHEMA,

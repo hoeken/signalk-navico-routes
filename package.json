@@ -2,7 +2,7 @@
   "name": "signalk-navico-routes",
   "version": "0.1.0",
   "description": "Synchronize routes and waypoints between Navico MFDs (B&G Zeus, Simrad NSS, Lowrance HDS) and SignalK via GoFree USR file transfer",
-  "displayName": "Navico Routes",
+  "displayName": "Navico Route Sync",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "license": "Apache-2.0",
