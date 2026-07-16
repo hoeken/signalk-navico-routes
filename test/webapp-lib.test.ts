@@ -51,22 +51,22 @@ describe('routeRows', () => {
       id: 'r-1',
       name: 'PASSAGE',
       timestamp: '2026-07-01T00:00:00.000Z',
-      waypoints: 2,
+      legs: 1,
     });
     expect(rows[0]!.lengthM).toBeGreaterThan(10_000);
   });
 
   it('tolerates missing names and timestamps', () => {
     const rows = routeRows({ r: ROUTE(undefined as unknown as string, []) });
-    expect(rows[0]).toMatchObject({ name: '', timestamp: null, waypoints: 0, lengthM: 0 });
+    expect(rows[0]).toMatchObject({ name: '', timestamp: null, legs: 0, lengthM: 0 });
   });
 });
 
 describe('sorting and filtering', () => {
   const rows: RouteRow[] = [
-    { id: 'a', name: 'bravo', timestamp: '2026-01-02T00:00:00Z', waypoints: 5, lengthM: 100 },
-    { id: 'b', name: 'Alpha', timestamp: null, waypoints: 2, lengthM: 300 },
-    { id: 'c', name: 'charlie', timestamp: '2026-01-01T00:00:00Z', waypoints: 9, lengthM: 200 },
+    { id: 'a', name: 'bravo', timestamp: '2026-01-02T00:00:00Z', legs: 5, lengthM: 100 },
+    { id: 'b', name: 'Alpha', timestamp: null, legs: 2, lengthM: 300 },
+    { id: 'c', name: 'charlie', timestamp: '2026-01-01T00:00:00Z', legs: 9, lengthM: 200 },
   ];
 
   it('sorts by name case-insensitively', () => {
@@ -74,8 +74,8 @@ describe('sorting and filtering', () => {
     expect(sortRows(rows, 'name', -1).map((r) => r.id)).toEqual(['c', 'a', 'b']);
   });
 
-  it('sorts numerically by waypoints and length', () => {
-    expect(sortRows(rows, 'waypoints', 1).map((r) => r.id)).toEqual(['b', 'a', 'c']);
+  it('sorts numerically by legs and length', () => {
+    expect(sortRows(rows, 'legs', 1).map((r) => r.id)).toEqual(['b', 'a', 'c']);
     expect(sortRows(rows, 'length', -1).map((r) => r.id)).toEqual(['b', 'c', 'a']);
   });
 

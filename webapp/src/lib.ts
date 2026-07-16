@@ -16,13 +16,13 @@ export interface RouteRow {
   name: string;
   /** ISO-8601 or null when the provider supplied no timestamp. */
   timestamp: string | null;
-  /** Number of points in the route's LineString. */
-  waypoints: number;
+  /** Number of legs (points − 1) in the route's LineString; MFD terminology. */
+  legs: number;
   /** Route length in meters, computed from the geometry. */
   lengthM: number;
 }
 
-export type SortKey = 'timestamp' | 'name' | 'waypoints' | 'length';
+export type SortKey = 'timestamp' | 'name' | 'legs' | 'length';
 export type SortDir = 1 | -1;
 
 // ── Theme ────────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export function routeRows(resources: Record<string, unknown>): RouteRow[] {
       id,
       name: typeof route.name === 'string' ? route.name : '',
       timestamp: typeof route.timestamp === 'string' ? route.timestamp : null,
-      waypoints: points.length,
+      legs: Math.max(0, points.length - 1),
       lengthM: lineDistanceMeters(points),
     });
   }
@@ -115,8 +115,8 @@ function compareRows(a: RouteRow, b: RouteRow, key: SortKey): number {
   switch (key) {
     case 'name':
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-    case 'waypoints':
-      return a.waypoints - b.waypoints;
+    case 'legs':
+      return a.legs - b.legs;
     case 'length':
       return a.lengthM - b.lengthM;
     case 'timestamp':

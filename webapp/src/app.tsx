@@ -196,15 +196,6 @@ function App() {
   };
 
   const uploadToMfd = () => {
-    const ok = window.confirm(
-      'Send ' +
-        selectedRows.length +
-        ' route(s) to the MFD?\n\n' +
-        'Uploads only add records on the MFD — they never overwrite or delete.',
-    );
-    if (!ok) {
-      return;
-    }
     run(
       'Sending routes to MFD',
       async () => {
@@ -309,8 +300,8 @@ function App() {
                 onSort={setSort}
               />
               <SortHeader
-                label="Waypoints"
-                k="waypoints"
+                label="Legs"
+                k="legs"
                 sortKey={sortKey}
                 sortDir={sortDir}
                 onSort={setSort}
@@ -362,7 +353,7 @@ function App() {
                     }
                   />
                 </td>
-                <td class="col-num">{row.waypoints}</td>
+                <td class="col-num">{row.legs}</td>
                 <td class="col-num">{formatLength(row.lengthM)}</td>
               </tr>
             ))}
