@@ -167,7 +167,7 @@ export class SyncEngine {
         );
       } catch (err) {
         // Failed or malformed download: keep serving the previous state.
-        this.reportUnreachable('download', err);
+        this.reportUnreachable(err);
       } finally {
         if (!this.stopped) {
           this.schedulePoll(this.config.pollIntervalSeconds * 1000);
@@ -201,7 +201,7 @@ export class SyncEngine {
         );
         return counts;
       } catch (err) {
-        this.reportUnreachable('download', err);
+        this.reportUnreachable(err);
         throw err;
       } finally {
         if (!this.stopped && this.config.syncFromMfd) {
@@ -218,7 +218,7 @@ export class SyncEngine {
         const { buf } = await this.pollOnce();
         return buf;
       } catch (err) {
-        this.reportUnreachable('download', err);
+        this.reportUnreachable(err);
         throw err;
       }
     });
@@ -271,7 +271,7 @@ export class SyncEngine {
         );
         return { routes: routes.size, archivedTo, nameAdjustments };
       } catch (err) {
-        this.reportUnreachable('upload', err);
+        this.reportUnreachable(err);
         throw err;
       }
     });
@@ -371,8 +371,8 @@ export class SyncEngine {
     }
   }
 
-  private reportUnreachable(operation: string, err: unknown): void {
-    const msg = `MFD ${operation} failed: ${err instanceof Error ? err.message : String(err)}`;
+  private reportUnreachable(err: unknown): void {
+    const msg = `${err instanceof Error ? err.message : String(err)} (${new Date().toISOString()})`;
     // Log at error once, then debug on repeats; resume silently on recovery.
     if (!this.mfdUnreachable) {
       this.mfdUnreachable = true;
