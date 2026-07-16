@@ -171,6 +171,38 @@ export function formatTimestamp(iso: string | null): string {
   );
 }
 
+/**
+ * 'Last synced …' phrasing: 'just now', '5 minutes ago', '3 hours ago',
+ * '2 days ago'. Null for a missing or unparseable timestamp.
+ */
+export function formatRelativeTime(iso: string | null, nowMs: number): string | null {
+  if (iso === null) {
+    return null;
+  }
+  const ms = Date.parse(iso);
+  if (isNaN(ms)) {
+    return null;
+  }
+  // Clock skew can put the server timestamp slightly in the future.
+  const seconds = Math.max(0, Math.floor((nowMs - ms) / 1000));
+  if (seconds < 60) {
+    return 'just now';
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return agoPhrase(minutes, 'minute');
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return agoPhrase(hours, 'hour');
+  }
+  return agoPhrase(Math.floor(hours / 24), 'day');
+}
+
+function agoPhrase(n: number, unit: string): string {
+  return n + ' ' + unit + (n === 1 ? '' : 's') + ' ago';
+}
+
 // ── Geometry ─────────────────────────────────────────────────────────────────
 //
 // Same haversine as the server's mapper; duplicated because the webapp

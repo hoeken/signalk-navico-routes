@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   filterRows,
   formatLength,
+  formatRelativeTime,
   formatTimestamp,
   lineDistanceMeters,
   resolveTheme,
@@ -107,6 +108,22 @@ describe('formatting', () => {
   it('truncates names to the MFD keyboard limit', () => {
     expect(truncateName('SHORT')).toBe('SHORT');
     expect(truncateName('A ROUTE NAME FAR TOO LONG')).toHaveLength(16);
+  });
+
+  it('phrases relative times for the last-sync line', () => {
+    const now = Date.parse('2026-07-16T12:00:00Z');
+    const ago = (seconds: number) => new Date(now - seconds * 1000).toISOString();
+    expect(formatRelativeTime(null, now)).toBeNull();
+    expect(formatRelativeTime('not a date', now)).toBeNull();
+    expect(formatRelativeTime(ago(5), now)).toBe('just now');
+    expect(formatRelativeTime(ago(-30), now)).toBe('just now'); // clock skew
+    expect(formatRelativeTime(ago(60), now)).toBe('1 minute ago');
+    expect(formatRelativeTime(ago(2 * 60 + 10), now)).toBe('2 minutes ago');
+    expect(formatRelativeTime(ago(59 * 60), now)).toBe('59 minutes ago');
+    expect(formatRelativeTime(ago(3600), now)).toBe('1 hour ago');
+    expect(formatRelativeTime(ago(3 * 3600), now)).toBe('3 hours ago');
+    expect(formatRelativeTime(ago(24 * 3600), now)).toBe('1 day ago');
+    expect(formatRelativeTime(ago(9 * 24 * 3600), now)).toBe('9 days ago');
   });
 });
 

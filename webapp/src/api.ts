@@ -11,6 +11,22 @@ export interface SelectionPayload {
   routes: { id: string; name: string }[];
 }
 
+/** GET /api/ui-config response: plugin facts and sync state shaping the UI. */
+export interface UiConfig {
+  name: string;
+  version: string;
+  /** False while the plugin is stopped/unconfigured; sync state is null then. */
+  running: boolean;
+  sync: {
+    syncFromMfd: boolean;
+    syncRoutes: boolean;
+    syncVisibleRoutesOnly: boolean;
+    syncWaypoints: boolean;
+  } | null;
+  /** ISO-8601 time of the last successful MFD → SignalK sync, if any. */
+  lastSync: string | null;
+}
+
 async function raise(res: Response): Promise<never> {
   let message = res.status + ' ' + res.statusText;
   try {
@@ -31,6 +47,14 @@ export async function fetchRoutes(): Promise<Record<string, unknown>> {
     return raise(res);
   }
   return (await res.json()) as Record<string, unknown>;
+}
+
+export async function fetchUiConfig(): Promise<UiConfig> {
+  const res = await fetch(API_BASE + '/api/ui-config', { credentials: 'same-origin' });
+  if (!res.ok) {
+    return raise(res);
+  }
+  return (await res.json()) as UiConfig;
 }
 
 export async function postJson<T>(path: string, body?: unknown): Promise<T> {

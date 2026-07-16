@@ -11,6 +11,7 @@
  * (served at /signalk-navico-routes, API at /plugins/signalk-navico-routes).
  */
 
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { IdMap } from './id-map';
 import { MfdClient } from './mfd-client';
@@ -67,6 +68,18 @@ const CONFIG_SCHEMA = {
     },
   },
 } as const;
+
+/** Plugin version from package.json (one level above both src/ and dist/). */
+function pluginVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')) as {
+      version?: string;
+    };
+    return pkg.version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
 interface Plugin {
   id: string;
@@ -177,6 +190,7 @@ export = function createPlugin(app: SignalKApp): Plugin {
     // at server startup; handlers answer 503 while the plugin is stopped.
     registerWithRouter(router: ApiRouter): void {
       registerApiRoutes(router, {
+        version: pluginVersion(),
         getEngine: () => engine,
         listRoutes: async () => {
           if (!app.resourcesApi) {

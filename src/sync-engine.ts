@@ -74,6 +74,18 @@ export interface UploadResult {
   nameAdjustments: NameAdjustment[];
 }
 
+/** Snapshot served to the webapp via GET /api/ui-config. */
+export interface UiState {
+  sync: {
+    syncFromMfd: boolean;
+    syncRoutes: boolean;
+    syncVisibleRoutesOnly: boolean;
+    syncWaypoints: boolean;
+  };
+  /** ISO-8601 time of the last successful MFD → SignalK sync, if any. */
+  lastSync: string | null;
+}
+
 export class SyncEngine {
   private chain: Promise<void> = Promise.resolve();
   private pollTimer?: NodeJS.Timeout;
@@ -83,6 +95,8 @@ export class SyncEngine {
   private lastDb?: UsrDatabase;
   /** Raw bytes behind lastDb, served for cached backups. */
   private lastBuf?: Buffer;
+  /** Time of the last successful download from the MFD (not cache loads). */
+  private lastSyncAt?: Date;
 
   constructor(
     private readonly config: SyncEngineConfig,
@@ -190,7 +204,17 @@ export class SyncEngine {
     await this.saveToCache(buf);
     this.lastDb = db;
     this.lastBuf = buf;
+    this.lastSyncAt = new Date();
     return { buf, counts: this.mirror(db) };
+  }
+
+  /** Config flags and last-sync time, for the webapp's GET /api/ui-config. */
+  uiState(): UiState {
+    const { syncFromMfd, syncRoutes, syncVisibleRoutesOnly, syncWaypoints } = this.config;
+    return {
+      sync: { syncFromMfd, syncRoutes, syncVisibleRoutesOnly, syncWaypoints },
+      lastSync: this.lastSyncAt ? this.lastSyncAt.toISOString() : null,
+    };
   }
 
   // ── Manual operations (webapp API) ───────────────────────────────────────

@@ -42,6 +42,15 @@ interface Reply {
 
 function harness(overrides: Partial<WebappApiDeps> = {}) {
   const engine = {
+    uiState: vi.fn(() => ({
+      sync: {
+        syncFromMfd: true,
+        syncRoutes: true,
+        syncVisibleRoutesOnly: false,
+        syncWaypoints: true,
+      },
+      lastSync: '2026-07-16T10:00:00.000Z',
+    })),
     syncNow: vi.fn(async () => ({ waypoints: 2, routes: 1 })),
     backupNow: vi.fn(async () => Buffer.from('USR-BACKUP')),
     buildUsr: vi.fn(() => ({ bytes: Buffer.from('USR-BUILT'), nameAdjustments: [] })),
@@ -59,6 +68,7 @@ function harness(overrides: Partial<WebappApiDeps> = {}) {
   };
 
   registerApiRoutes(router, {
+    version: '1.2.3',
     getEngine: () => engine as unknown as SyncEngine,
     listRoutes: async () => ({
       'r-foreign': FOREIGN_ROUTE,
@@ -102,6 +112,37 @@ function harness(overrides: Partial<WebappApiDeps> = {}) {
 }
 
 describe('webapp api', () => {
+  it('GET /api/ui-config reports version, sync flags, and last sync time', async () => {
+    const h = harness();
+    const reply = await h.call('GET', '/api/ui-config');
+    expect(reply.status).toBe(200);
+    expect(reply.json).toEqual({
+      name: PLUGIN_ID,
+      version: '1.2.3',
+      running: true,
+      sync: {
+        syncFromMfd: true,
+        syncRoutes: true,
+        syncVisibleRoutesOnly: false,
+        syncWaypoints: true,
+      },
+      lastSync: '2026-07-16T10:00:00.000Z',
+    });
+  });
+
+  it('GET /api/ui-config answers while the plugin is not running', async () => {
+    const h = harness({ getEngine: () => undefined });
+    const reply = await h.call('GET', '/api/ui-config');
+    expect(reply.status).toBe(200);
+    expect(reply.json).toEqual({
+      name: PLUGIN_ID,
+      version: '1.2.3',
+      running: false,
+      sync: null,
+      lastSync: null,
+    });
+  });
+
   it('POST /api/sync triggers a sync and returns counts', async () => {
     const h = harness();
     const reply = await h.call('POST', '/api/sync');

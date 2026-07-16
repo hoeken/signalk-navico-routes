@@ -515,3 +515,37 @@ describe('manual operations (webapp)', () => {
     await h.engine.stop();
   });
 });
+
+describe('uiState', () => {
+  it('reflects the config flags and records the last successful sync', async () => {
+    const h = harness({ syncWaypoints: false });
+    expect(h.engine.uiState()).toEqual({
+      sync: {
+        syncFromMfd: true,
+        syncRoutes: true,
+        syncVisibleRoutesOnly: true,
+        syncWaypoints: false,
+      },
+      lastSync: null,
+    });
+
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+    expect(h.engine.uiState().lastSync).toBe(new Date().toISOString());
+    await h.engine.stop();
+  });
+
+  it('does not count a cache load as a sync', async () => {
+    const cached = buildUsr({ waypoints: [WP_C], routes: [] });
+    const h = harness({}, cached);
+    // Downloads fail: only the cache load succeeds.
+    h.client.download.mockRejectedValue(new Error('ECONNREFUSED'));
+    h.engine.start();
+    await settle(0);
+    await h.engine.flush();
+    expect(h.store.ids('waypoints')).toHaveLength(1);
+    expect(h.engine.uiState().lastSync).toBeNull();
+    await h.engine.stop();
+  });
+});

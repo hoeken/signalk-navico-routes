@@ -37,6 +37,8 @@ export interface ApiRouter {
 }
 
 export interface WebappApiDeps {
+  /** Plugin version, from package.json. */
+  version: string;
   /** Undefined while the plugin is not started/configured. */
   getEngine(): SyncEngine | undefined;
   /** All SignalK routes across providers (server resources API). */
@@ -82,6 +84,19 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
         res.status(status).json({ error: message });
       });
     };
+
+  // Static plugin facts plus current sync state, so the webapp can shape
+  // its UI. Unlike the operations below this answers while the plugin is
+  // stopped too (running: false, no sync state).
+  router.get('/api/ui-config', (_req, res) => {
+    const running = deps.getEngine();
+    res.json({
+      name: PLUGIN_ID,
+      version: deps.version,
+      running: Boolean(running),
+      ...(running ? running.uiState() : { sync: null, lastSync: null }),
+    });
+  });
 
   // Force an immediate MFD → SignalK sync.
   router.post(

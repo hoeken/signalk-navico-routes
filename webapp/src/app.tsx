@@ -12,11 +12,13 @@
 
 import { render } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { downloadFile, fetchRoutes, postJson } from './api';
+import { downloadFile, fetchRoutes, fetchUiConfig, postJson } from './api';
 import {
   NAME_LIMIT,
+  PLUGIN_ID,
   filterRows,
   formatLength,
+  formatRelativeTime,
   formatTimestamp,
   resolveTheme,
   routeRows,
@@ -24,6 +26,7 @@ import {
   truncateName,
 } from './lib';
 import type { RouteRow, SortDir, SortKey, Theme } from './lib';
+import type { UiConfig } from './api';
 
 interface SyncResult {
   waypoints: number;
@@ -59,6 +62,8 @@ function App() {
   const [sortDir, setSortDir] = useState<SortDir>(-1);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
+  const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     document.documentElement.className = theme === 'night' ? 'theme-night' : 'theme-day';
@@ -73,8 +78,17 @@ function App() {
         setLoadError('Could not load routes: ' + err.message);
       },
     );
+    // Refreshed alongside the routes so 'Last synced' tracks manual syncs.
+    // On failure the UI just keeps its defaults (everything shown).
+    fetchUiConfig().then(setUiConfig, () => undefined);
   };
   useEffect(reload, []);
+
+  // Keep the relative 'Last synced …' phrasing from going stale.
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const visible = useMemo(
     () => sortRows(filterRows(rows || [], query), sortKey, sortDir),
@@ -84,6 +98,13 @@ function App() {
   const allVisibleSelected = visible.length > 0 && visible.every((r) => selected[r.id]);
 
   const nameFor = (row: RouteRow) => names[row.id] ?? truncateName(row.name);
+
+  // MFD → SignalK sync UI is hidden when the plugin has it disabled;
+  // an unknown config (endpoint unreachable) shows everything, as before.
+  const syncEnabled = !uiConfig || !uiConfig.sync || uiConfig.sync.syncFromMfd;
+  const lastSynced = syncEnabled
+    ? formatRelativeTime(uiConfig ? uiConfig.lastSync : null, nowMs)
+    : null;
 
   const setSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -184,6 +205,7 @@ function App() {
   const toolbar = (
     <Toolbar
       busy={busy}
+      showSync={syncEnabled}
       selectedCount={selectedRows.length}
       onSync={syncFromMfd}
       onBackup={downloadBackup}
@@ -201,6 +223,7 @@ function App() {
             SignalK routes that are not yet mirrored from the MFD. Select routes to send them to the
             MFD or export them as a USR file.
           </p>
+          {lastSynced && <p class="last-sync">Last synced {lastSynced}</p>}
         </div>
         <button
           type="button"
@@ -328,6 +351,12 @@ function App() {
       {toolbar}
 
       {status && <div class={'status status-' + status.kind}>{status.text}</div>}
+
+      <footer class="footer">
+        <a href={'https://www.npmjs.com/package/' + PLUGIN_ID} target="_blank" rel="noreferrer">
+          {PLUGIN_ID + (uiConfig ? ' v' + uiConfig.version : '')}
+        </a>
+      </footer>
     </div>
   );
 }
@@ -354,6 +383,8 @@ function SortHeader(props: {
 
 function Toolbar(props: {
   busy: boolean;
+  /** False when MFD → SignalK sync is disabled in the plugin config. */
+  showSync: boolean;
   selectedCount: number;
   onSync: () => void;
   onBackup: () => void;
@@ -363,9 +394,11 @@ function Toolbar(props: {
   const none = props.selectedCount === 0;
   return (
     <div class="toolbar">
-      <button type="button" class="btn" disabled={props.busy} onClick={props.onSync}>
-        Sync MFD → SignalK
-      </button>
+      {props.showSync && (
+        <button type="button" class="btn" disabled={props.busy} onClick={props.onSync}>
+          Sync MFD → SignalK
+        </button>
+      )}
       <button type="button" class="btn" disabled={props.busy} onClick={props.onBackup}>
         Download MFD backup
       </button>
