@@ -5,6 +5,7 @@ import {
   formatRelativeTime,
   formatTimestamp,
   lineDistanceMeters,
+  NAME_LIMIT,
   resolveTheme,
   routeRows,
   sortRows,
@@ -107,7 +108,7 @@ describe('formatting', () => {
 
   it('truncates names to the MFD keyboard limit', () => {
     expect(truncateName('SHORT')).toBe('SHORT');
-    expect(truncateName('A ROUTE NAME FAR TOO LONG')).toHaveLength(16);
+    expect(truncateName('A ROUTE NAME FAR TOO LONG THAT KEEPS GOING')).toHaveLength(NAME_LIMIT);
   });
 
   it('phrases relative times for the last-sync line', () => {

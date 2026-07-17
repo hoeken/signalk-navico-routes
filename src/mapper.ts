@@ -29,12 +29,12 @@ import { PLUGIN_ID } from './types';
 import type { Position, Resource, ResourceType, RouteResource, WaypointResource } from './types';
 
 /**
- * Maximum name length enforced on upload. The Zeus3S on-screen keyboard
- * caps names at 16 characters, but real MFD-generated USR files contain
- * route names up to 24 characters (imported data), so the file format
- * itself accepts longer strings; 32 is a conservative ceiling.
+ * Maximum name length enforced on upload: 16, confirmed on Zeus3S hardware
+ * (2026-07-18). Real MFD-generated USR files can contain longer names
+ * (imported data, up to 24 chars observed), so parsing never truncates —
+ * only names we send to the MFD are capped.
  */
-export const MAX_NAME_LENGTH = 32;
+export const MAX_NAME_LENGTH = 16;
 
 // ─── USR → SignalK ───────────────────────────────────────────────────────────
 

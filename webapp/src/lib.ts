@@ -6,7 +6,7 @@
 
 export const PLUGIN_ID = 'signalk-navico-routes';
 
-/** Names sent to the MFD are capped at 16 chars (on-screen keyboard limit). */
+/** Names sent to the MFD are capped at 16 chars (confirmed Zeus3S limit). */
 export const NAME_LIMIT = 16;
 
 export type Theme = 'day' | 'night';

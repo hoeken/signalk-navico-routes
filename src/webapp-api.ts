@@ -20,7 +20,7 @@ import type { DiscoveredMfd } from './discovery';
 import type { SyncEngine } from './sync-engine';
 import type { Logger, RouteResource } from './types';
 
-/** Name limit enforced for MFD-bound routes (Zeus3S on-screen keyboard cap). */
+/** Name limit for MFD-bound routes (confirmed on Zeus3S hardware). */
 export const MFD_NAME_LIMIT = 16;
 
 /** Download formats offered by the webapp. */
