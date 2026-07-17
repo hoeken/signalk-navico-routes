@@ -1,133 +1,101 @@
-# signalk-navico-routes
+# Navico Route Sync (signalk-navico-routes)
 
-Mirror **routes** and **waypoints** from Navico MFDs (B&G Zeus, Simrad NSS,
-Lowrance HDS, …) into [SignalK](https://signalk.org/).
+Sync the **routes** and **waypoints** from your Navico chartplotter — B&G
+Zeus, Simrad NSS/NSX, Lowrance HDS, etc to [SignalK](https://signalk.org/),
+and send routes from SignalK back to the chartplotter when you choose.
 
-The plugin registers as a SignalK v2 **resource provider** for `routes` and
-`waypoints`. It reads the MFD's user database as a **USR v6** file over the
-MFD's built-in GoFree HTTP file service — no NMEA 2000, no protocol
-sniffing:
-
-```
-POST http://<mfd-ip>/cgi-bin/download.cgi   → full user DB (USR v6)
-POST http://<mfd-ip>/cgi-bin/upload.cgi     → replace user DB (multipart, field file1)
-```
-
-Any single MFD works as the sync peer: after an upload it propagates the
-database to all other MFDs via Navico's own UDB sync.
+The plugin talks to the chartplotter over your boat's regular Ethernet/Wi-Fi
+network using the MFD's built-in file service. No NMEA 2000 gateway or extra
+hardware is needed — just the MFD and the SignalK server on the same network.
 
 ## Features
 
-- MFD → SignalK: periodic mirror of all routes and waypoints into
-  `/signalk/v2/api/resources/routes` and `/waypoints`.
-- Full USR v6 codec (parser + serializer), reverse-engineered and tested
-  against real Zeus3S databases — see [docs/usr-v6-format.md](docs/usr-v6-format.md).
-- USR file generation from SignalK resources, with unchanged records
-  round-tripping **byte-identically**.
-- A bundled **webapp** for manual SignalK → MFD transfer (see below).
+- **Automatic MFD → SignalK mirror.** All routes and waypoints on the
+  chartplotter appear in SignalK's standard resources API
+  (`/signalk/v2/api/resources/routes` and `/waypoints`), refreshed on a
+  configurable schedule, so any SignalK app (Freeboard, etc.) can display them.
+- **Multi-MFD friendly.** Point the plugin at any one chartplotter; Navico's
+  own sync spreads uploads to the rest of the network.
+- **A webapp for sending routes the other way.** Pick routes from SignalK
+  and push them to the chartplotter, or download backups and GPX exports —
+  all from the SignalK admin UI. With [signalk-navico-embedder](http://npmjs.com/signalk-navico-embedder) you can manage the sync from the MFD itself.
 
-## Why no automatic SignalK → MFD sync?
+## Installation
 
-Uploading a USR file only **adds** routes and waypoints on the MFD — it
-neither overwrites nor deletes existing records. A bidirectional mirror
-therefore cannot converge, so the provider is a **read-only mirror**:
-writes through the resources API are rejected. Pushing selected routes to
-the MFD is a manual, user-driven operation through the bundled webapp.
-
-## Webapp
-
-Open **Navico Routes** from the SignalK admin UI's _Webapps_ screen (served
-at `/signalk-navico-routes`). It lists every SignalK route that is _not_
-already mirrored from the MFD — i.e. routes from other providers — in a
-sortable, searchable table, and lets you:
-
-- **Sync MFD → SignalK** — trigger an immediate download and mirror.
-- **Download MFD routes** — save the MFD's user database as a complete
-  `.usr` backup (do this before experimenting; uploads cannot be undone)
-  or as a `.gpx` file of its routes and free-standing waypoints.
-- **Download selected** — export the selected SignalK routes as a USR v6
-  file (e.g. to import on another Navico chartplotter) or as GPX.
-- **Send selected to MFD** — upload the selected routes to the MFD. Uploads
-  are additive (they never overwrite or delete anything on the MFD), so the
-  routes are sent directly; afterwards the plugin leaves the pushed routes
-  to their owning provider instead of mirroring a duplicate back.
-
-Route names are editable in the table and capped at 16 characters (the MFD
-on-screen keyboard limit); the SignalK side keeps the full name, and GPX
-exports use the full name unless a route was renamed in the table. The page
-follows a `?mode=day` / `?mode=night` query parameter, then the OS theme,
-and has an in-page day/night toggle.
-
-The API behind the webapp is mounted at `/plugins/signalk-navico-routes`
-(`POST /api/sync`, `GET /api/backup?format=usr|gpx`, `POST /api/export`,
-`POST /api/upload`).
-
-Remember that uploads are **additive**: re-sending an edited route adds a
-record rather than replacing the old one; delete outdated copies on the MFD
-itself.
+Install **Navico Route Sync** from the SignalK Appstore (or `npm install
+signalk-navico-routes` in your server directory), then enable it under
+**Server → Plugin Config** and set your chartplotter's IP address.
 
 ## Configuration
 
-| Setting                 | Default | Description                                    |
-| ----------------------- | ------- | ---------------------------------------------- |
-| `mfdAddress`            | —       | IP/hostname of the MFD to sync with (required) |
-| `syncFromMfd`           | `true`  | Enable MFD → SignalK mirror                    |
-| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                 |
-| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD         |
-| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints             |
-| `pollIntervalSeconds`   | `300`   | USR download cadence (min 15)                  |
+| Setting                 | Default | Description                                            |
+| ----------------------- | ------- | ------------------------------------------------------ |
+| `mfdAddress`            | —       | IP address or hostname of the chartplotter (required)  |
+| `syncFromMfd`           | `true`  | Enable the MFD → SignalK mirror                        |
+| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                         |
+| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD                 |
+| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints                     |
+| `pollIntervalSeconds`   | `300`   | How often to refresh from the MFD, in seconds (min 15) |
 
-## Sync semantics
+Tip: give your chartplotter a static IP (or a DHCP reservation in your
+router) so `mfdAddress` stays valid.
 
-- **The MFD is the truth.** Downloads mirror the MFD database into
-  SignalK, including deletions.
-- Waypoints that only serve as route legs are represented by the route's
-  LineString alone; only free-standing waypoints are published as SignalK
-  waypoints. This holds even when a route itself is filtered out (hidden,
-  or route sync disabled): its legs stay unpublished.
-- The last good download is cached and served immediately on startup,
-  before the first poll.
+## How syncing works
 
-## Known limitations (v1)
+**The chartplotter is the source of truth.** The plugin periodically
+downloads the MFD's user database and mirrors it into SignalK — including
+deletions, so removing a route on the MFD removes it from SignalK too. The
+routes and waypoints it mirrors are read-only in SignalK; you can't edit
+them through the resources API.
 
-1. One static MFD address; no GoFree auto-discovery, no multi-MFD failover.
-2. Names longer than 32 characters are truncated when generating a USR
-   file (`~1`, `~2`, … on collision). The SignalK side keeps the full name.
-3. The id ↔ MFD-record mapping is persisted in the plugin data directory
-   (`navico-id-map.json`).
+Going the other direction is deliberately manual: Navico chartplotters only
+ever **add** routes from an upload — they never overwrite or delete existing
+ones — so a fully automatic two-way sync isn't possible. Instead, you choose
+which routes to send using the webapp.
 
-## Development
+## The webapp
 
-```
-npm install
-npm run ci        # lint + webapp typecheck + test + build
-```
+Open **Navico Routes** from the _Webapps_ screen in the SignalK admin UI. It
+lists every SignalK route that didn't come from the chartplotter (e.g.
+routes you planned in another app) in a sortable, searchable table, and lets
+you:
 
-The webapp lives in `webapp/` (Preact + TypeScript) and is bundled by
-esbuild into `public/` (`npm run build:webapp`), targeting **Chromium 69**
-so it runs on embedded MFD browsers.
+- **Sync MFD → SignalK** — refresh from the chartplotter right now instead
+  of waiting for the next scheduled poll.
+- **Download MFD routes** — save the chartplotter's complete user database
+  as a `.usr` backup, or its routes and waypoints as a `.gpx` file.
+- **Download selected** — export the routes you've selected as a `.usr`
+  file (to import on another Navico chartplotter via SD card) or as GPX.
+- **Send selected to MFD** — upload the selected routes straight to the
+  chartplotter.
 
-Tests that depend on captured MFD databases (`research/captures/*.usr`,
-gitignored) skip automatically when the files are absent; everything else
-runs from synthetic fixtures.
+A few things worth knowing:
 
-### Hardware smoke test
+- **Uploads are additive.** Sending an edited route again creates a second
+  copy on the chartplotter rather than replacing the first — delete the
+  outdated copy on the MFD itself.
+- **Back up first.** Uploads can't be undone, so grab a `.usr` backup
+  before sending anything you're unsure about.
+- **Route names** are editable in the table and capped at 16 characters
+  (the MFD's on-screen keyboard limit). SignalK keeps the full name, and
+  GPX exports use it unless you renamed the route in the table.
+- The page has a day/night toggle and also follows your OS theme (or a
+  `?mode=day` / `?mode=night` URL parameter).
 
-With a real MFD on the network:
+## Known limitations
 
-```
-npm run build
-node scripts/smoke-test.js <mfd-ip>            # download → parse → serialize → verify
-node scripts/smoke-test.js <mfd-ip> --upload   # …then upload the regenerated file,
-                                               # re-download and diff (destroys trails!)
-```
+1. One chartplotter address — no auto-discovery or multi-MFD failover yet.
+   (Uploads still reach every MFD via Navico's own sync.)
+2. Route and waypoint names longer than 32 characters are shortened when
+   sent to the chartplotter; SignalK keeps the full name.
 
-## How it works
+## For developers
 
-Findings from the protocol research (see `research/NOTES.md`): Navico MFDs
-sync routes over a unicast "UDB" protocol that is invisible on a switched
-network and unnecessary to reverse — every MFD serves its complete user
-database over HTTP as a USR v6 file and accepts one back, propagating it to
-the fleet. This plugin is therefore just a careful USR v6 codec plus sync
-bookkeeping. The full byte-level format documentation lives in
+Build instructions, the plugin's HTTP API, protocol research notes, and the
+reverse-engineered USR v6 file format are documented in
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and
 [docs/usr-v6-format.md](docs/usr-v6-format.md).
+
+## License
+
+See [LICENSE](LICENSE).
