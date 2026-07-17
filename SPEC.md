@@ -115,7 +115,7 @@ Notes:
 - **`Mapper`** — pure conversion between the codec model and SignalK resource
   types (§8), including name-length enforcement and ID mapping.
 - **`MfdClient`** — thin HTTP client around the two CGI endpoints. Download
-  timeout ≥ 45 s (slave MFDs take ~7 s just to generate the file). Upload as
+  timeout 120 s (slave MFDs take ~7 s just to generate the file). Upload as
   `multipart/form-data`, field name `file1`.
 - **`ResourceStore`** — in-memory maps `id → route` and `id → waypoint`, the
   backing store for the resource provider. Holds MFD-originated resources plus

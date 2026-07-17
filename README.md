@@ -36,7 +36,7 @@ automatically; you can also pin one by IP address.
 | `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                          |
 | `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD                  |
 | `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints                      |
-| `pollIntervalSeconds`   | `300`   | How often to refresh from the MFD, in seconds (min 30; 0 turns polling off) |
+| `pollIntervalSeconds`   | `600`   | How often to refresh from the MFD, in seconds (min 30; 0 turns polling off) |
 
 ### Auto-discovery
 

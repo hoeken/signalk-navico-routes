@@ -419,7 +419,7 @@ export class SyncEngine {
   }
 
   private reportUnreachable(err: unknown): void {
-    const msg = `${err instanceof Error ? err.message : String(err)} (${new Date().toISOString()})`;
+    const msg = err instanceof Error ? err.message : String(err);
     // Log at error once, then debug on repeats; resume silently on recovery.
     if (!this.mfdUnreachable) {
       this.mfdUnreachable = true;

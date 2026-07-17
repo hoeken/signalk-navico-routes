@@ -38,7 +38,7 @@ export class MfdClient {
 
   constructor(address: string, options: MfdClientOptions = {}) {
     this.base = `http://${address}`;
-    this.downloadTimeoutMs = options.downloadTimeoutMs ?? 45_000;
+    this.downloadTimeoutMs = options.downloadTimeoutMs ?? 120_000;
     this.uploadTimeoutMs = options.uploadTimeoutMs ?? 120_000;
   }
 
@@ -68,7 +68,7 @@ export class MfdClient {
     operation: 'download' | 'upload',
     path: string,
     payload?: { body: Buffer; contentType: string; timeoutMs: number },
-    timeoutMs = payload?.timeoutMs ?? 45_000,
+    timeoutMs = payload?.timeoutMs ?? 120_000,
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const fail = (message: string) => reject(new MfdHttpError(operation, message));
@@ -97,7 +97,7 @@ export class MfdClient {
 
       // Absolute deadline for the whole exchange.
       const deadline = setTimeout(() => {
-        req.destroy(new Error(`timed out after ${timeoutMs} ms`));
+        req.destroy(new Error(`timed out after ${timeoutMs / 1000} seconds`));
       }, timeoutMs);
       req.on('close', () => clearTimeout(deadline));
       req.on('error', (err) => fail(err.message));

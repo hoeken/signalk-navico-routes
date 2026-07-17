@@ -27,7 +27,7 @@ const DEFAULTS: PluginConfig = {
   syncRoutes: true,
   syncVisibleRoutesOnly: true,
   syncWaypoints: true,
-  pollIntervalSeconds: 300,
+  pollIntervalSeconds: 600,
 };
 
 /** Wire shape of GET /api/discovered (see src/webapp-api.ts). */

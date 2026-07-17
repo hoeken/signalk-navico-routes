@@ -73,7 +73,7 @@ const CONFIG_SCHEMA = {
       description:
         'How often to download the USR file from the MFD. Minimum 30. ' +
         'Set to 0 to turn automatic polling off; manual sync from the webapp still works.',
-      default: 300,
+      default: 600,
       minimum: 0,
     },
   },
@@ -115,7 +115,7 @@ export = function createPlugin(app: SignalKApp): Plugin {
     start(options: Partial<PluginConfig>): void {
       // 0 disables automatic polling (manual sync still works); any other
       // value is clamped to a 30-second floor so a typo can't hammer the MFD.
-      const rawPollSeconds = options.pollIntervalSeconds ?? 300;
+      const rawPollSeconds = options.pollIntervalSeconds ?? 600;
       const config: PluginConfig = {
         mfdAddress: options.mfdAddress ?? '',
         syncFromMfd: options.syncFromMfd ?? true,
