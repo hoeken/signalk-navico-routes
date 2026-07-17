@@ -14,6 +14,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { request } from 'node:http';
+import type { Logger } from './types';
 
 export class MfdHttpError extends Error {
   constructor(
@@ -103,5 +104,87 @@ export class MfdClient {
 
       req.end(payload?.body);
     });
+  }
+}
+
+/** The MFD I/O surface SyncEngine consumes. */
+export interface UsrTransport {
+  download(): Promise<Buffer>;
+  upload(usr: Buffer): Promise<void>;
+}
+
+export interface FailoverMfdClientOptions extends MfdClientOptions {
+  log?: Logger;
+  /**
+   * How long to wait for discovery to produce at least one candidate before
+   * failing an operation. Announcements arrive about once a second, so this
+   * mostly matters for the first poll right after plugin start.
+   */
+  waitForCandidatesMs?: number;
+}
+
+/**
+ * MFD client over a dynamic candidate list (GoFree auto-discovery): each
+ * operation tries the candidates in order — UDB master first — and falls
+ * back to the next on timeout or error. Also used with a fixed single-entry
+ * list when the user configured an explicit address.
+ */
+export class FailoverMfdClient implements UsrTransport {
+  private readonly waitForCandidatesMs: number;
+
+  constructor(
+    private readonly candidates: () => string[],
+    private readonly options: FailoverMfdClientOptions = {},
+    private readonly clientFactory: (address: string) => UsrTransport = (address) =>
+      new MfdClient(address, options),
+  ) {
+    this.waitForCandidatesMs = options.waitForCandidatesMs ?? 10_000;
+  }
+
+  download(): Promise<Buffer> {
+    return this.attempt('download', (client) => client.download());
+  }
+
+  async upload(usr: Buffer): Promise<void> {
+    await this.attempt('upload', (client) => client.upload(usr));
+  }
+
+  private async attempt<T>(
+    operation: 'download' | 'upload',
+    fn: (client: UsrTransport) => Promise<T>,
+  ): Promise<T> {
+    const addresses = await this.awaitCandidates();
+    if (addresses.length === 0) {
+      throw new MfdHttpError(
+        operation,
+        `no MFD address configured and none discovered on the network ` +
+          `(GoFree announcements on 239.2.1.1:2052)`,
+      );
+    }
+    let lastError: unknown;
+    for (const [i, address] of addresses.entries()) {
+      try {
+        return await fn(this.clientFactory(address));
+      } catch (err) {
+        lastError = err;
+        const message = err instanceof Error ? err.message : String(err);
+        if (i < addresses.length - 1) {
+          this.options.log?.debug(`${message}; falling back to ${addresses[i + 1]}`);
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /** Candidate list, polling briefly if discovery hasn't seen anyone yet. */
+  private async awaitCandidates(): Promise<string[]> {
+    const deadline = Date.now() + this.waitForCandidatesMs;
+    for (;;) {
+      const addresses = this.candidates();
+      if (addresses.length > 0 || Date.now() >= deadline) {
+        return addresses;
+      }
+      await new Promise((r) => setTimeout(r, Math.min(250, deadline - Date.now())));
+    }
   }
 }

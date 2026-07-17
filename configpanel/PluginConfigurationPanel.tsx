@@ -30,6 +30,19 @@ const DEFAULTS: PluginConfig = {
   pollIntervalSeconds: 300,
 };
 
+/** Wire shape of GET /api/discovered (see src/webapp-api.ts). */
+interface DiscoveredMfd {
+  address: string;
+  model: string;
+  name: string;
+  udbMaster: boolean;
+  lastSeen: string;
+}
+
+const DISCOVERED_URL = '/plugins/signalk-navico-routes/api/discovered';
+/** MFDs announce ~1/s; refreshing every few seconds keeps the list live. */
+const DISCOVERED_POLL_MS = 5000;
+
 /** Floor for non-zero intervals; 0 is also valid and disables automatic polling. */
 const MIN_POLL_SECONDS = 30;
 
@@ -107,6 +120,30 @@ const S: Record<string, CSSProperties> = {
   // Children of a toggle: dimmed and inert when the parent is off.
   children: {
     transition: 'opacity 0.15s',
+  },
+  discoveredList: { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 },
+  discoveredRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '5px 10px',
+    borderRadius: 6,
+    border: '1px solid #ccc',
+    background: '#f8fafc',
+    fontSize: 12,
+    color: '#333',
+    cursor: 'pointer',
+    textAlign: 'left',
+    width: 'fit-content',
+  },
+  discoveredAddr: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontWeight: 600 },
+  roleBadge: {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    padding: '1px 6px',
+    borderRadius: 8,
   },
   actions: { display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 },
   saveBtn: {
@@ -193,7 +230,29 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
     };
   }, []);
 
-  const addressMissing = mfdAddress.trim() === '';
+  // MFDs the plugin currently sees announcing via GoFree multicast; the rows
+  // are click-to-fill for the address field. Empty while the plugin is
+  // stopped (discovery runs inside the plugin) or nothing is announcing.
+  const [discovered, setDiscovered] = useState<DiscoveredMfd[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(DISCOVERED_URL, { credentials: 'include' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { mfds?: DiscoveredMfd[] };
+        if (!cancelled && Array.isArray(data.mfds)) setDiscovered(data.mfds);
+      } catch {
+        // plugin stopped or server unreachable — keep whatever we had
+      }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), DISCOVERED_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
   const pollSeconds = Number(pollInterval);
   const pollInvalid =
     syncFromMfd &&
@@ -201,7 +260,7 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
       !Number.isFinite(pollSeconds) ||
       pollSeconds < 0 ||
       (pollSeconds > 0 && pollSeconds < MIN_POLL_SECONDS));
-  const canSave = !saving && !addressMissing && !pollInvalid;
+  const canSave = !saving && !pollInvalid;
 
   const doSave = async () => {
     if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
@@ -238,18 +297,45 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
         <span style={S.label}>MFD address</span>
         <div style={S.fieldBody}>
           <input
-            style={{ ...S.input, ...(addressMissing ? S.inputInvalid : {}) }}
+            style={S.input}
             type="text"
             value={mfdAddress}
-            placeholder="e.g. 192.168.1.35"
+            placeholder="empty = auto-discover"
             onChange={(e) => setMfdAddress(e.target.value)}
           />
-          <span style={addressMissing ? S.hintError : S.hint}>
-            {addressMissing
-              ? 'Required — the plugin does nothing without an MFD to talk to.'
-              : 'IP address or hostname of a Navico MFD (B&G Zeus, Simrad NSS, Lowrance HDS, …). ' +
-                'Any MFD on the network works; it propagates changes to the rest via UDB.'}
+          <span style={S.hint}>
+            IP address or hostname of a Navico MFD (B&amp;G Zeus, Simrad NSS, Lowrance HDS, …).
+            Any MFD on the network works; it propagates changes to the rest via UDB. Leave empty
+            to auto-discover MFDs (the master is preferred, with fallback to the others).
           </span>
+          {discovered.length > 0 && (
+            <div style={S.discoveredList}>
+              <span style={S.hint}>Discovered on the network — click to use:</span>
+              {discovered.map((m) => (
+                <button
+                  key={m.address}
+                  type="button"
+                  style={{
+                    ...S.discoveredRow,
+                    ...(mfdAddress.trim() === m.address ? { borderColor: ACCENT } : {}),
+                  }}
+                  onClick={() => setMfdAddress(m.address)}
+                >
+                  <span style={S.discoveredAddr}>{m.address}</span>
+                  <span>{m.name || m.model}</span>
+                  <span
+                    style={{
+                      ...S.roleBadge,
+                      background: m.udbMaster ? '#dbeafe' : '#e2e8f0',
+                      color: m.udbMaster ? '#1d4ed8' : '#475569',
+                    }}
+                  >
+                    {m.udbMaster ? 'master' : 'slave'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

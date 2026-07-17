@@ -43,8 +43,10 @@ Grounded in the findings of [research/NOTES.md](research/NOTES.md):
 
 - **Trails** are not synchronized (uploads are additive and leave them
   untouched).
-- No MFD auto-discovery in v1 (GoFree multicast discovery is a possible later
-  enhancement); the MFD is addressed by a single configured IP.
+- ~~No MFD auto-discovery in v1~~ — since implemented: the plugin listens to
+  GoFree multicast announcements (`239.2.1.1:2052`), the config panel offers
+  the discovered MFDs, and an empty `mfdAddress` syncs with the discovered
+  UDB master (falling back to the other MFDs).
 - No web app / UI beyond the standard SignalK plugin config screen.
 - No NMEA 2000 involvement; sync is HTTP-over-ethernet only.
 
@@ -63,7 +65,7 @@ Plugin config schema (JSON Schema, rendered by the SignalK admin UI):
 
 | Key                        | Type    | Default | Description                                                                                                                                             |
 | -------------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mfdAddress`               | string  | —       | IP address (or hostname) of the MFD to sync with. Required. Any MFD works; it propagates changes to the rest via UDB.                                   |
+| `mfdAddress`               | string  | `''`    | IP address (or hostname) of the MFD to sync with. Empty = auto-discover via GoFree multicast. Any MFD works; it propagates changes to the rest via UDB. |
 | `syncFromMfd`              | boolean | `true`  | Enable MFD → SignalK sync (periodic USR download).                                                                                                      |
 | `syncToMfd`                | boolean | `false` | Enable SignalK → MFD sync (USR upload on resource change).                                                                                              |
 | `pollIntervalSeconds`      | number  | `300`   | How often to download the USR file from the MFD. Minimum 30; `0` disables automatic polling (manual sync still works).                                  |
@@ -416,7 +418,8 @@ scripts/            # hardware smoke test
    from an upload, but records cannot be updated or removed through it
    either.
 2. Pending-edit ledger is in-memory; a restart re-asserts MFD state.
-3. Single static MFD IP; no auto-discovery, no multi-MFD failover.
+3. ~~Single static MFD IP; no auto-discovery, no multi-MFD failover.~~
+   Superseded: GoFree auto-discovery with master-first failover.
 4. SignalK-only resources (with `syncToMfd` off) are transient and subject to
    removal by the MFD mirror.
 5. For resources owned by **other providers**, SignalK is authoritative:

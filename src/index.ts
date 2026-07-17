@@ -13,8 +13,9 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { MfdDiscovery } from './discovery';
 import { IdMap } from './id-map';
-import { MfdClient } from './mfd-client';
+import { FailoverMfdClient } from './mfd-client';
 import { ResourceStore } from './resource-store';
 import { SyncEngine } from './sync-engine';
 import { UsrCache } from './usr-cache';
@@ -29,14 +30,16 @@ import type { Delta, PluginConfig, ResourceType, RouteResource, SignalKApp } fro
 // two in sync.
 const CONFIG_SCHEMA = {
   type: 'object',
-  required: ['mfdAddress'],
   properties: {
     mfdAddress: {
       type: 'string',
       title: 'MFD address',
       description:
         'IP address or hostname of the Navico MFD (B&G Zeus, Simrad NSS, Lowrance HDS, …) to sync with. ' +
-        'Any MFD on the network works; it propagates changes to the rest via UDB.',
+        'Any MFD on the network works; it propagates changes to the rest via UDB. ' +
+        'Leave empty to auto-discover MFDs from their GoFree announcements ' +
+        '(the UDB master is preferred, with fallback to the others).',
+      default: '',
     },
     syncFromMfd: {
       type: 'boolean',
@@ -100,6 +103,7 @@ interface Plugin {
 
 export = function createPlugin(app: SignalKApp): Plugin {
   let engine: SyncEngine | undefined;
+  let discovery: MfdDiscovery | undefined;
 
   const plugin: Plugin = {
     id: PLUGIN_ID,
@@ -121,19 +125,29 @@ export = function createPlugin(app: SignalKApp): Plugin {
         pollIntervalSeconds: rawPollSeconds <= 0 ? 0 : Math.max(30, rawPollSeconds),
       };
 
-      if (!config.mfdAddress) {
-        app.setPluginError('mfdAddress is not configured');
-        return;
-      }
       if (!config.syncFromMfd) {
         app.error('syncFromMfd is disabled: the plugin will do nothing');
         app.setPluginStatus('idle (sync disabled)');
       }
 
+      const log = { debug: (msg: string) => app.debug(msg), error: (msg: string) => app.error(msg) };
+
+      // Discovery runs for the whole plugin lifetime, whatever the address
+      // config: with an empty address it supplies the sync candidates, and
+      // either way it feeds the discovered-MFD list in the config panel.
+      discovery = new MfdDiscovery(log);
+      discovery.start();
+
       const dataDir = app.getDataDirPath();
       const store = new ResourceStore();
       const idMap = IdMap.load(dataDir);
-      const client = new MfdClient(config.mfdAddress);
+      // A configured address wins; otherwise sync with whatever discovery
+      // sees, UDB master first, falling back to the others on failure.
+      const forDiscovery = discovery;
+      const client = new FailoverMfdClient(
+        config.mfdAddress ? () => [config.mfdAddress] : () => forDiscovery.candidates(),
+        { log },
+      );
       const cache = new UsrCache(join(dataDir, 'last-sync.usr'));
 
       engine = new SyncEngine(config, {
@@ -147,7 +161,7 @@ export = function createPlugin(app: SignalKApp): Plugin {
           };
           app.handleMessage(PLUGIN_ID, delta, 'v2');
         },
-        log: { debug: (msg) => app.debug(msg), error: (msg) => app.error(msg) },
+        log,
         setStatus: (msg) => app.setPluginStatus(msg),
         setError: (msg) => app.setPluginError(msg),
       });
@@ -186,13 +200,15 @@ export = function createPlugin(app: SignalKApp): Plugin {
           ? 'idle (sync disabled)'
           : config.pollIntervalSeconds === 0
             ? 'automatic polling off; sync manually from the webapp'
-            : `waiting for first sync with ${config.mfdAddress}`,
+            : `waiting for first sync with ${config.mfdAddress || 'auto-discovered MFD'}`,
       );
     },
 
     stop(): Promise<void> | void {
       const running = engine;
       engine = undefined;
+      discovery?.stop();
+      discovery = undefined;
       return running?.stop();
     },
 
@@ -202,6 +218,7 @@ export = function createPlugin(app: SignalKApp): Plugin {
       registerApiRoutes(router, {
         version: pluginVersion(),
         getEngine: () => engine,
+        getDiscovered: () => discovery?.list() ?? [],
         listRoutes: async () => {
           if (!app.resourcesApi) {
             throw new Error('this SignalK server does not expose the resources API to plugins');

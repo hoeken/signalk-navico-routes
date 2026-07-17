@@ -16,6 +16,7 @@ import { GPX_CONTENT_TYPE, gpxFromRouteResources, gpxFromUsrDatabase } from './g
 import { validateResource } from './mapper';
 import { PLUGIN_ID } from './types';
 import { parseUsr } from './usr/codec';
+import type { DiscoveredMfd } from './discovery';
 import type { SyncEngine } from './sync-engine';
 import type { Logger, RouteResource } from './types';
 
@@ -47,6 +48,8 @@ export interface WebappApiDeps {
   version: string;
   /** Undefined while the plugin is not started/configured. */
   getEngine(): SyncEngine | undefined;
+  /** MFDs currently announcing on the GoFree multicast group ([] when stopped). */
+  getDiscovered(): DiscoveredMfd[];
   /** All SignalK routes across providers (server resources API). */
   listRoutes(): Promise<Record<string, RouteResource>>;
   log: Logger;
@@ -101,6 +104,21 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
       version: deps.version,
       running: Boolean(running),
       ...(running ? running.uiState() : { sync: null, lastSync: null }),
+    });
+  });
+
+  // MFDs currently announcing themselves via GoFree multicast, master
+  // first — the admin-UI config panel offers these for the address field.
+  // Discovery only runs while the plugin is started; stopped → empty list.
+  router.get('/api/discovered', (_req, res) => {
+    res.json({
+      mfds: deps.getDiscovered().map((m) => ({
+        address: m.address,
+        model: m.model,
+        name: m.name,
+        udbMaster: m.udbMaster,
+        lastSeen: m.lastSeen.toISOString(),
+      })),
     });
   });
 

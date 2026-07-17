@@ -70,6 +70,16 @@ function harness(overrides: Partial<WebappApiDeps> = {}) {
   registerApiRoutes(router, {
     version: '1.2.3',
     getEngine: () => engine as unknown as SyncEngine,
+    getDiscovered: () => [
+      {
+        address: '192.168.2.110',
+        model: 'Zeus3S 9',
+        name: 'Zeus3S 9',
+        udbMaster: false,
+        networkMaster: false,
+        lastSeen: new Date('2026-07-16T10:29:59.000Z'),
+      },
+    ],
     listRoutes: async () => ({
       'r-foreign': FOREIGN_ROUTE,
       'r-mirrored': MIRRORED_ROUTE,
@@ -146,6 +156,30 @@ describe('webapp api', () => {
       sync: null,
       lastSync: null,
     });
+  });
+
+  it('GET /api/discovered reports announcing MFDs with role and last-seen time', async () => {
+    const h = harness();
+    const reply = await h.call('GET', '/api/discovered');
+    expect(reply.status).toBe(200);
+    expect(reply.json).toEqual({
+      mfds: [
+        {
+          address: '192.168.2.110',
+          model: 'Zeus3S 9',
+          name: 'Zeus3S 9',
+          udbMaster: false,
+          lastSeen: '2026-07-16T10:29:59.000Z',
+        },
+      ],
+    });
+  });
+
+  it('GET /api/discovered is empty while the plugin is not running', async () => {
+    const h = harness({ getEngine: () => undefined, getDiscovered: () => [] });
+    const reply = await h.call('GET', '/api/discovered');
+    expect(reply.status).toBe(200);
+    expect(reply.json).toEqual({ mfds: [] });
   });
 
   it('POST /api/sync triggers a sync and returns counts', async () => {

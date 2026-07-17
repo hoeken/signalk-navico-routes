@@ -24,21 +24,34 @@ hardware is needed — just the MFD and the SignalK server on the same network.
 
 Install **Navico Route Sync** from the SignalK Appstore (or `npm install
 signalk-navico-routes` in your server directory), then enable it under
-**Server → Plugin Config** and set your chartplotter's IP address.
+**Server → Plugin Config**. Chartplotters on the network are discovered
+automatically; you can also pin one by IP address.
 
 ## Configuration
 
-| Setting                 | Default | Description                                            |
-| ----------------------- | ------- | ------------------------------------------------------ |
-| `mfdAddress`            | —       | IP address or hostname of the chartplotter (required)  |
-| `syncFromMfd`           | `true`  | Enable the MFD → SignalK mirror                        |
-| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                         |
-| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD                 |
-| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints                     |
-| `pollIntervalSeconds`   | `300`   | How often to refresh from the MFD, in seconds (min 15) |
+| Setting                 | Default | Description                                             |
+| ----------------------- | ------- | ------------------------------------------------------- |
+| `mfdAddress`            | —       | IP address or hostname of the chartplotter. Leave empty to auto-discover (see below) |
+| `syncFromMfd`           | `true`  | Enable the MFD → SignalK mirror                         |
+| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                          |
+| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD                  |
+| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints                      |
+| `pollIntervalSeconds`   | `300`   | How often to refresh from the MFD, in seconds (min 30; 0 turns polling off) |
 
-Tip: give your chartplotter a static IP (or a DHCP reservation in your
-router) so `mfdAddress` stays valid.
+### Auto-discovery
+
+Navico chartplotters announce themselves on the network (GoFree multicast)
+about once a second, and the plugin listens the whole time it runs. The
+config panel lists every discovered chartplotter with its role
+(master/slave) — click one to fill in the address field, or leave the field
+empty and the plugin syncs with whatever it finds: the master first, falling
+back to the others if it doesn't answer. Chartplotters that turn on or off
+while the plugin is running appear and disappear from the list on their own.
+
+With an empty address there is nothing to reconfigure when your boat
+network hands out new DHCP leases. If you do pin an address, give the
+chartplotter a static IP (or a DHCP reservation in your router) so it
+stays valid.
 
 ## How syncing works
 
@@ -84,9 +97,7 @@ A few things worth knowing:
 
 ## Known limitations
 
-1. One chartplotter address — no auto-discovery or multi-MFD failover yet.
-   (Uploads still reach every MFD via Navico's own sync.)
-2. Route and waypoint names longer than 32 characters are shortened when
+1. Route and waypoint names longer than 32 characters are shortened when
    sent to the chartplotter; SignalK keeps the full name.
 
 ## For developers

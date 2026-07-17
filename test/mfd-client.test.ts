@@ -1,7 +1,8 @@
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MfdClient, MfdHttpError } from '../src/mfd-client';
+import { FailoverMfdClient, MfdClient, MfdHttpError } from '../src/mfd-client';
+import type { UsrTransport } from '../src/mfd-client';
 
 type Handler = (req: IncomingMessage, body: Buffer, res: ServerResponse) => void;
 
@@ -96,5 +97,74 @@ describe('MfdClient.upload', () => {
     };
     const client = new MfdClient(address);
     await expect(client.upload(Buffer.from('x'))).rejects.toThrow(/HTTP 403/);
+  });
+});
+
+describe('FailoverMfdClient', () => {
+  /** Fake per-address transports: addresses named 'bad*' always fail. */
+  function factory(calls: string[]): (address: string) => UsrTransport {
+    return (addr) => ({
+      download: async () => {
+        calls.push(`download ${addr}`);
+        if (addr.startsWith('bad')) {
+          throw new MfdHttpError('download', `${addr} is down`);
+        }
+        return Buffer.from(addr);
+      },
+      upload: async () => {
+        calls.push(`upload ${addr}`);
+        if (addr.startsWith('bad')) {
+          throw new MfdHttpError('upload', `${addr} is down`);
+        }
+      },
+    });
+  }
+
+  it('uses the first candidate when it works', async () => {
+    const calls: string[] = [];
+    const client = new FailoverMfdClient(() => ['master', 'slave'], {}, factory(calls));
+    const buf = await client.download();
+    expect(buf.toString()).toBe('master');
+    expect(calls).toEqual(['download master']);
+  });
+
+  it('falls back to the next candidate on failure', async () => {
+    const calls: string[] = [];
+    const client = new FailoverMfdClient(() => ['bad-master', 'slave'], {}, factory(calls));
+    const buf = await client.download();
+    expect(buf.toString()).toBe('slave');
+    expect(calls).toEqual(['download bad-master', 'download slave']);
+
+    await client.upload(Buffer.from('x'));
+    expect(calls.slice(2)).toEqual(['upload bad-master', 'upload slave']);
+  });
+
+  it('rethrows the last error when every candidate fails', async () => {
+    const calls: string[] = [];
+    const client = new FailoverMfdClient(() => ['bad-1', 'bad-2'], {}, factory(calls));
+    await expect(client.download()).rejects.toThrow(/bad-2 is down/);
+    expect(calls).toEqual(['download bad-1', 'download bad-2']);
+  });
+
+  it('waits briefly for discovery to produce candidates', async () => {
+    const calls: string[] = [];
+    let candidates: string[] = [];
+    const client = new FailoverMfdClient(
+      () => candidates,
+      { waitForCandidatesMs: 2000 },
+      factory(calls),
+    );
+    const pending = client.download();
+    setTimeout(() => {
+      candidates = ['late-master'];
+    }, 100);
+    const buf = await pending;
+    expect(buf.toString()).toBe('late-master');
+  });
+
+  it('fails with a clear error when nothing is discovered in time', async () => {
+    const client = new FailoverMfdClient(() => [], { waitForCandidatesMs: 50 }, factory([]));
+    await expect(client.download()).rejects.toThrow(/none discovered/);
+    await expect(client.download()).rejects.toThrow(MfdHttpError);
   });
 });
