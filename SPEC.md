@@ -66,7 +66,7 @@ Plugin config schema (JSON Schema, rendered by the SignalK admin UI):
 | `mfdAddress`               | string  | —       | IP address (or hostname) of the MFD to sync with. Required. Any MFD works; it propagates changes to the rest via UDB.                                   |
 | `syncFromMfd`              | boolean | `true`  | Enable MFD → SignalK sync (periodic USR download).                                                                                                      |
 | `syncToMfd`                | boolean | `false` | Enable SignalK → MFD sync (USR upload on resource change).                                                                                              |
-| `pollIntervalSeconds`      | number  | `300`   | How often to download the USR file from the MFD. Minimum 15.                                                                                            |
+| `pollIntervalSeconds`      | number  | `300`   | How often to download the USR file from the MFD. Minimum 30; `0` disables automatic polling (manual sync still works).                                  |
 | `uploadQuietSeconds`       | number  | `10`    | Debounce: wait for this many seconds of no further resource changes before uploading, so a burst of small edits coalesces into one upload.              |
 | `uploadMinIntervalSeconds` | number  | `60`    | Throttle: hard floor between consecutive uploads, even if changes keep arriving. Changes are never lost — they coalesce into the next permitted upload. |
 

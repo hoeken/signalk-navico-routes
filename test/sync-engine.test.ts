@@ -301,6 +301,30 @@ describe('MFD → SignalK mirror', () => {
     expect(h.client.download).not.toHaveBeenCalled();
     await h.engine.stop();
   });
+
+  it('pollIntervalSeconds=0: no automatic polls, but the cache still serves', async () => {
+    const h = harness({ pollIntervalSeconds: 0 }, buildUsr({ waypoints: [WP_A], routes: [] }));
+    h.engine.start();
+    await settle(600_000);
+    await h.engine.flush();
+
+    expect(h.client.download).not.toHaveBeenCalled();
+    expect(Object.values(h.store.list('waypoints'))[0]!.name).toBe('SAVUSAVU');
+    await h.engine.stop();
+  });
+
+  it('pollIntervalSeconds=0: syncNow still works and starts no poll loop', async () => {
+    const h = harness({ pollIntervalSeconds: 0 });
+    h.engine.start();
+    await settle(600_000);
+    expect(h.client.download).not.toHaveBeenCalled();
+
+    const counts = await h.engine.syncNow();
+    expect(counts).toEqual({ waypoints: 1, routes: 1 });
+    await settle(600_000);
+    expect(h.client.download).toHaveBeenCalledTimes(1);
+    await h.engine.stop();
+  });
 });
 
 describe('startup sync cache', () => {

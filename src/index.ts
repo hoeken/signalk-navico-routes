@@ -41,7 +41,9 @@ const CONFIG_SCHEMA = {
     syncFromMfd: {
       type: 'boolean',
       title: 'Sync MFD → SignalK',
-      description: 'Periodically download the user database and mirror it into SignalK.',
+      description:
+        'Mirror the MFD user database into SignalK — automatically on the poll interval, ' +
+        'and on demand from the webapp.',
       default: true,
     },
     syncRoutes: {
@@ -65,9 +67,11 @@ const CONFIG_SCHEMA = {
     pollIntervalSeconds: {
       type: 'number',
       title: 'Poll interval (seconds)',
-      description: 'How often to download the USR file from the MFD. Minimum 15.',
+      description:
+        'How often to download the USR file from the MFD. Minimum 30. ' +
+        'Set to 0 to turn automatic polling off; manual sync from the webapp still works.',
       default: 300,
-      minimum: 15,
+      minimum: 0,
     },
   },
 } as const;
@@ -105,13 +109,16 @@ export = function createPlugin(app: SignalKApp): Plugin {
     schema: CONFIG_SCHEMA,
 
     start(options: Partial<PluginConfig>): void {
+      // 0 disables automatic polling (manual sync still works); any other
+      // value is clamped to a 30-second floor so a typo can't hammer the MFD.
+      const rawPollSeconds = options.pollIntervalSeconds ?? 300;
       const config: PluginConfig = {
         mfdAddress: options.mfdAddress ?? '',
         syncFromMfd: options.syncFromMfd ?? true,
         syncRoutes: options.syncRoutes ?? true,
         syncVisibleRoutesOnly: options.syncVisibleRoutesOnly ?? true,
         syncWaypoints: options.syncWaypoints ?? true,
-        pollIntervalSeconds: Math.max(15, options.pollIntervalSeconds ?? 300),
+        pollIntervalSeconds: rawPollSeconds <= 0 ? 0 : Math.max(30, rawPollSeconds),
       };
 
       if (!config.mfdAddress) {
@@ -175,9 +182,11 @@ export = function createPlugin(app: SignalKApp): Plugin {
 
       engine.start();
       app.setPluginStatus(
-        config.syncFromMfd
-          ? `waiting for first sync with ${config.mfdAddress}`
-          : 'idle (sync disabled)',
+        !config.syncFromMfd
+          ? 'idle (sync disabled)'
+          : config.pollIntervalSeconds === 0
+            ? 'automatic polling off; sync manually from the webapp'
+            : `waiting for first sync with ${config.mfdAddress}`,
       );
     },
 

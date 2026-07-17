@@ -80,7 +80,7 @@ describe('plugin integration', () => {
     plugin.start({
       mfdAddress: `127.0.0.1:${port}`,
       syncFromMfd: true,
-      pollIntervalSeconds: 15, // min; the immediate first poll is what we use
+      pollIntervalSeconds: 30, // min; the immediate first poll is what we use
     });
   });
 

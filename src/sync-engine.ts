@@ -2,7 +2,8 @@
  * SyncEngine: owns the poll timer and mirrors the MFD's user database into
  * SignalK, one way (MFD → SignalK). The file is the truth: every poll
  * replaces the published resources with the file's content, including
- * deletions.
+ * deletions. A poll interval of 0 disables the timer entirely: the mirror
+ * then only updates through the manual operations (syncNow, downloadNow).
  *
  * SignalK → MFD transfer is deliberately NOT automatic. Uploading a USR
  * file only *adds* records on the MFD (it neither overwrites nor deletes
@@ -30,6 +31,7 @@ export interface SyncEngineConfig {
   syncRoutes: boolean;
   syncVisibleRoutesOnly: boolean;
   syncWaypoints: boolean;
+  /** Seconds between automatic polls; 0 disables automatic polling. */
   pollIntervalSeconds: number;
 }
 
@@ -106,7 +108,9 @@ export class SyncEngine {
       // Enqueued before the first poll: the provider serves the last good
       // sync immediately, and the poll then corrects any drift.
       void this.enqueue(() => this.loadFromCache());
-      this.schedulePoll(0);
+      if (this.config.pollIntervalSeconds > 0) {
+        this.schedulePoll(0);
+      }
     }
   }
 
@@ -125,6 +129,13 @@ export class SyncEngine {
   }
 
   // ── MFD → SignalK (poll + mirror) ────────────────────────────────────────
+
+  /** Queue the next automatic poll, unless polling is disabled (interval 0). */
+  private scheduleNextPoll(): void {
+    if (this.config.pollIntervalSeconds > 0) {
+      this.schedulePoll(this.config.pollIntervalSeconds * 1000);
+    }
+  }
 
   private schedulePoll(delayMs: number): void {
     if (this.stopped) {
@@ -157,7 +168,10 @@ export class SyncEngine {
       this.lastBuf = buf;
       const counts = this.mirror(db);
       this.deps.setStatus(
-        `serving ${counts.waypoints} waypoints, ${counts.routes} routes from cache; waiting for MFD sync`,
+        `serving ${counts.waypoints} waypoints, ${counts.routes} routes from cache` +
+          (this.config.pollIntervalSeconds > 0
+            ? '; waiting for MFD sync'
+            : ' (automatic polling off)'),
       );
     } catch (err) {
       this.deps.log.error(`ignoring unparseable sync cache: ${String(err)}`);
@@ -184,7 +198,7 @@ export class SyncEngine {
         this.reportUnreachable(err);
       } finally {
         if (!this.stopped) {
-          this.schedulePoll(this.config.pollIntervalSeconds * 1000);
+          this.scheduleNextPoll();
         }
       }
     });
@@ -230,7 +244,7 @@ export class SyncEngine {
         throw err;
       } finally {
         if (!this.stopped && this.config.syncFromMfd) {
-          this.schedulePoll(this.config.pollIntervalSeconds * 1000);
+          this.scheduleNextPoll();
         }
       }
     });

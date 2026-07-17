@@ -30,7 +30,8 @@ const DEFAULTS: PluginConfig = {
   pollIntervalSeconds: 300,
 };
 
-const MIN_POLL_SECONDS = 15;
+/** Floor for non-zero intervals; 0 is also valid and disables automatic polling. */
+const MIN_POLL_SECONDS = 30;
 
 interface PanelProps {
   /** Saved plugin configuration; null/undefined on a fresh install. */
@@ -196,7 +197,10 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
   const pollSeconds = Number(pollInterval);
   const pollInvalid =
     syncFromMfd &&
-    (pollInterval.trim() === '' || !Number.isFinite(pollSeconds) || pollSeconds < MIN_POLL_SECONDS);
+    (pollInterval.trim() === '' ||
+      !Number.isFinite(pollSeconds) ||
+      pollSeconds < 0 ||
+      (pollSeconds > 0 && pollSeconds < MIN_POLL_SECONDS));
   const canSave = !saving && !addressMissing && !pollInvalid;
 
   const doSave = async () => {
@@ -213,7 +217,8 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
           syncRoutes,
           syncVisibleRoutesOnly,
           syncWaypoints,
-          pollIntervalSeconds: Math.max(MIN_POLL_SECONDS, Math.round(pollSeconds)),
+          pollIntervalSeconds:
+            pollSeconds <= 0 ? 0 : Math.max(MIN_POLL_SECONDS, Math.round(pollSeconds)),
         }),
       );
       setStatus('Configuration saved. The plugin will restart.');
@@ -251,7 +256,7 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
       <div style={S.sectionTitle}>MFD → SignalK</div>
       <Toggle
         label="Sync MFD → SignalK"
-        hint="Periodically download the user database and mirror it into SignalK."
+        hint="Mirror the MFD user database into SignalK — automatically on the poll interval, and on demand from the webapp."
         checked={syncFromMfd}
         onChange={setSyncFromMfd}
       />
@@ -289,15 +294,15 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
                 ...(pollInvalid ? S.inputInvalid : {}),
               }}
               type="number"
-              min={MIN_POLL_SECONDS}
+              min={0}
               value={pollInterval}
               disabled={!syncFromMfd}
               onChange={(e) => setPollInterval(e.target.value)}
             />
             <span style={pollInvalid ? S.hintError : S.hint}>
               {pollInvalid
-                ? `Minimum ${MIN_POLL_SECONDS} seconds.`
-                : 'How often to download the USR file from the MFD.'}
+                ? `Must be 0 (automatic polling off) or at least ${MIN_POLL_SECONDS} seconds.`
+                : 'How often to download the USR file from the MFD. 0 turns automatic polling off; manual sync still works.'}
             </span>
           </div>
         </div>
