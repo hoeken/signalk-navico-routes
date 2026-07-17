@@ -53,6 +53,16 @@ network hands out new DHCP leases. If you do pin an address, give the
 chartplotter a static IP (or a DHCP reservation in your router) so it
 stays valid.
 
+**No chartplotters showing up?** Run `node scripts/gofree-watch.mjs` on the
+SignalK machine — it listens the same way the plugin does and prints every
+announcement it hears, so you can tell "nothing on the wire" apart from a
+receive problem. One known receive problem: the Raspberry Pi 4's onboard
+Ethernet can silently drop multicast even though everything is configured
+correctly. If the watch script hears nothing while
+`sudo tcpdump -i eth0 host 239.2.1.1` shows traffic, that's it — running
+tcpdump itself (or `sudo ifconfig eth0 allmulti`) resets the network
+interface's filter and discovery starts working.
+
 ## How syncing works
 
 **The chartplotter is the source of truth.** The plugin periodically
