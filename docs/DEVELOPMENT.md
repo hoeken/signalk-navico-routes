@@ -57,23 +57,39 @@ through the webapp.
 
 The API behind the webapp is mounted at `/plugins/signalk-navico-routes`:
 
-| Endpoint                       | Description                                    |
-| ------------------------------ | ---------------------------------------------- |
-| `POST /api/sync`               | Trigger an immediate MFD download and mirror   |
+| Endpoint                          | Description                                  |
+| --------------------------------- | -------------------------------------------- |
+| `POST /api/sync`                  | Trigger an immediate MFD download and mirror |
 | `GET /api/backup?format=usr\|gpx` | Download the MFD user DB as `.usr` or `.gpx` |
-| `POST /api/export`             | Export selected SignalK routes as USR/GPX      |
-| `POST /api/upload`             | Upload selected routes to the MFD              |
+| `POST /api/export`                | Export selected SignalK routes as USR/GPX    |
+| `POST /api/upload`                | Upload selected routes to the MFD            |
 
 ## Building and testing
 
 ```
 npm install
-npm run ci        # lint + webapp typecheck + test + build
+npm run ci        # lint + typechecks + test + build
 ```
 
 The webapp lives in `webapp/` (Preact + TypeScript) and is bundled by
 esbuild into `public/` (`npm run build:webapp`), targeting **Chromium 69**
 so it runs on embedded MFD browsers.
+
+## Admin UI configuration panel
+
+The plugin settings form in the SignalK admin UI is a custom React
+component (`configpanel/PluginConfigurationPanel.tsx`) instead of the
+schema-generated form. The `signalk-plugin-configurator` keyword in
+`package.json` tells the admin UI to load it: the panel is built by
+webpack as a **module-federation remote** (`npm run build:configpanel` →
+`public/remoteEntry.js` + `configpanel.*.js`), exposing
+`./PluginConfigurationPanel` and sharing the admin UI's React 19 singleton.
+The component receives `{ configuration, save }` props; `save()` persists
+the config and restarts the plugin.
+
+The JSON schema in `src/index.ts` is kept as the source of defaults and as
+a fallback form for servers that don't support embedded config panels —
+keep it in sync with the panel and `PluginConfig` in `src/types.ts`.
 
 Tests that depend on captured MFD databases (`research/captures/*.usr`,
 gitignored) skip automatically when the files are absent; everything else

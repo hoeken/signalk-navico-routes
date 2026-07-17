@@ -3,8 +3,11 @@
 - screenshots
 - Confirm the true name-length limit on hardware (codec currently truncates at 32 chars; MFD files contain up to 24).
 
-- admin UI -> React UI
-  - MFD -> SK specific options nested
-  - specific options should enable based on if the parent option is enabled.
+- allow poll interval to be zero = automatic syncing disabled.
+  - we still want to enable manual syncing MFD -> SK
+  - change the description verbiage on the top level option
+  - keep the minimum 15s for >0 values
 
-- GoFree multicast auto-discovery (`239.2.1.1:2052`) instead of a static IP
+- add discovered MFD ip addresses to the ip address section
+  - use GoFree multicast auto-discovery (`239.2.1.1:2052`) to show ip addresses and role (master/slave)
+  - if ip address is empty, use auto-discovered ip MFD addresses

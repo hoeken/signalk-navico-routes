@@ -16,6 +16,10 @@ smoke-archive/
 public/app.js
 public/app.js.map
 
+# Admin-UI config panel bundle (webpack module-federation output)
+public/remoteEntry.js*
+public/configpanel*
+
 # Packet captures & sample MFD databases (large / device-specific)
 research/captures/
 *.pcap

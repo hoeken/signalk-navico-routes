@@ -137,7 +137,11 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
     wrap(async (req, res) => {
       const format = parseFormat((req.body as { format?: unknown } | undefined)?.format);
       // GPX has no name-length limit; USR names are capped for the MFD.
-      const routes = await resolveSelection(deps, req.body, format === 'gpx' ? Infinity : undefined);
+      const routes = await resolveSelection(
+        deps,
+        req.body,
+        format === 'gpx' ? Infinity : undefined,
+      );
       const stamp = fileStamp(now());
       if (format === 'gpx') {
         const gpx = gpxFromRouteResources(routes, now());

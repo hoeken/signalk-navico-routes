@@ -14,6 +14,7 @@
   "keywords": [
     "signalk-node-server-plugin",
     "signalk-webapp",
+    "signalk-plugin-configurator",
     "signalk-category-navigation",
     "signalk",
     "navico",
@@ -41,30 +42,38 @@
     "public"
   ],
   "scripts": {
-    "build": "tsc && npm run build:webapp",
+    "build": "tsc && npm run build:webapp && npm run build:configpanel",
     "generate:icons": "node scripts/generate-icons.mjs",
     "build:webapp": "esbuild webapp/src/app.tsx --bundle --minify --sourcemap --target=chrome69 --jsx=automatic --jsx-import-source=preact --outfile=public/app.js",
+    "build:configpanel": "webpack",
     "typecheck:webapp": "tsc --noEmit -p webapp",
+    "typecheck:configpanel": "tsc --noEmit -p configpanel",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src test webapp/src",
-    "format": "prettier --write src test webapp scripts docs *.md",
-    "format:check": "prettier --check src test webapp",
-    "ci": "npm run lint && npm run typecheck:webapp && npm run test && npm run build",
+    "lint": "eslint src test webapp/src configpanel",
+    "format": "prettier --write src test webapp configpanel scripts docs *.md",
+    "format:check": "prettier --check src test webapp configpanel",
+    "ci": "npm run lint && npm run typecheck:webapp && npm run typecheck:configpanel && npm run test && npm run build",
     "prepublishOnly": "npm run ci"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
     "@types/node": "^20.14.0",
+    "@types/react": "^19.2.0",
     "esbuild": "^0.28.1",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
     "png-to-ico": "^3.0.2",
     "preact": "^10.29.7",
     "prettier": "^3.3.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "sharp": "^0.35.3",
+    "ts-loader": "^9.5.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "webpack": "^5.105.0",
+    "webpack-cli": "^7.0.0"
   }
 }

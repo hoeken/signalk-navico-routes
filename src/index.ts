@@ -23,6 +23,10 @@ import { PLUGIN_ID } from './types';
 import type { ApiRouter } from './webapp-api';
 import type { Delta, PluginConfig, ResourceType, RouteResource, SignalKApp } from './types';
 
+// In admin UIs that support embedded config panels, this schema is superseded
+// by the custom React panel in configpanel/ (see the signalk-plugin-configurator
+// keyword); it remains the source of defaults and the fallback form. Keep the
+// two in sync.
 const CONFIG_SCHEMA = {
   type: 'object',
   required: ['mfdAddress'],
