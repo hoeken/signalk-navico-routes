@@ -234,6 +234,7 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
   // are click-to-fill for the address field. Empty while the plugin is
   // stopped (discovery runs inside the plugin) or nothing is announcing.
   const [discovered, setDiscovered] = useState<DiscoveredMfd[]>([]);
+  const [discoveredLoaded, setDiscoveredLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
@@ -244,6 +245,8 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
         if (!cancelled && Array.isArray(data.mfds)) setDiscovered(data.mfds);
       } catch {
         // plugin stopped or server unreachable — keep whatever we had
+      } finally {
+        if (!cancelled) setDiscoveredLoaded(true);
       }
     };
     void poll();
@@ -296,53 +299,56 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
       <div style={S.fieldRow}>
         <span style={S.label}>MFD address</span>
         <div style={S.fieldBody}>
+          <div style={{ ...S.discoveredList, marginTop: 0, marginBottom: 6 }}>
+            <span style={S.hint}>
+              {!discoveredLoaded
+                ? 'Discovered MFDs on the network: searching…'
+                : discovered.length > 0
+                  ? 'Discovered MFDs on the network:'
+                  : 'No MFDs discovered on the network.  See README for troubleshooting.'}
+            </span>
+            {discovered.map((m) => (
+              <button
+                key={m.address}
+                type="button"
+                style={{
+                  ...S.discoveredRow,
+                  ...(mfdAddress.trim() === m.address ? { borderColor: ACCENT } : {}),
+                }}
+                onClick={() => setMfdAddress(m.address)}
+              >
+                <span style={S.discoveredAddr}>{m.address}</span>
+                <span>{m.name || m.model}</span>
+                <span
+                  style={{
+                    ...S.roleBadge,
+                    background: m.udbMaster ? '#dbeafe' : '#e2e8f0',
+                    color: m.udbMaster ? '#1d4ed8' : '#475569',
+                  }}
+                >
+                  {m.udbMaster ? 'master' : 'slave'}
+                </span>
+              </button>
+            ))}
+          </div>
           <input
             style={S.input}
             type="text"
             value={mfdAddress}
-            placeholder="empty = auto-discover"
+            placeholder="empty = use auto-discovered above"
             onChange={(e) => setMfdAddress(e.target.value)}
           />
           <span style={S.hint}>
-            IP address or hostname of a Navico MFD (B&amp;G Zeus, Simrad NSS, Lowrance HDS, …).
-            Any MFD on the network works; it propagates changes to the rest via UDB. Leave empty
-            to auto-discover MFDs (the master is preferred, with fallback to the others).
+            IP address or hostname of master Navico MFD.
+            Uploads must sync to master and then it propagates changes to the rest via UDB.
           </span>
-          {discovered.length > 0 && (
-            <div style={S.discoveredList}>
-              <span style={S.hint}>Discovered on the network — click to use:</span>
-              {discovered.map((m) => (
-                <button
-                  key={m.address}
-                  type="button"
-                  style={{
-                    ...S.discoveredRow,
-                    ...(mfdAddress.trim() === m.address ? { borderColor: ACCENT } : {}),
-                  }}
-                  onClick={() => setMfdAddress(m.address)}
-                >
-                  <span style={S.discoveredAddr}>{m.address}</span>
-                  <span>{m.name || m.model}</span>
-                  <span
-                    style={{
-                      ...S.roleBadge,
-                      background: m.udbMaster ? '#dbeafe' : '#e2e8f0',
-                      color: m.udbMaster ? '#1d4ed8' : '#475569',
-                    }}
-                  >
-                    {m.udbMaster ? 'master' : 'slave'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
       <div style={S.sectionTitle}>MFD → SignalK</div>
       <Toggle
         label="Sync MFD → SignalK"
-        hint="Mirror the MFD user database into SignalK — automatically on the poll interval, and on demand from the webapp."
+        hint="Allow syncing of routes from MFD → SignalK"
         checked={syncFromMfd}
         onChange={setSyncFromMfd}
       />
@@ -387,7 +393,7 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
             />
             <span style={pollInvalid ? S.hintError : S.hint}>
               {pollInvalid
-                ? `Must be 0 (automatic polling off) or at least ${MIN_POLL_SECONDS} seconds.`
+                ? `Must be 0 (automatic polling off) or at least ${MIN_POLL_SECONDS} seconds.  Recommended 300s or more.`
                 : 'How often to download the USR file from the MFD. 0 turns automatic polling off; manual sync still works.'}
             </span>
           </div>
