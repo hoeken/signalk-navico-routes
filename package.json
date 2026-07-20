@@ -59,7 +59,15 @@
     "format": "prettier --write src test webapp configpanel scripts docs *.md",
     "format:check": "prettier --check src test webapp configpanel",
     "ci": "npm run lint && npm run typecheck:webapp && npm run typecheck:configpanel && npm run test && npm run build",
+    "prepare": "husky || true",
     "prepublishOnly": "npm run ci"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,mjs,json,css,html,md}": "prettier --write"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
@@ -68,6 +76,8 @@
     "esbuild": "^0.28.1",
     "eslint": "^9.9.0",
     "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "png-to-ico": "^3.0.2",
     "preact": "^10.29.7",
     "prettier": "^3.3.0",

@@ -130,7 +130,10 @@ export = function createPlugin(app: SignalKApp): Plugin {
         app.setPluginStatus('idle (sync disabled)');
       }
 
-      const log = { debug: (msg: string) => app.debug(msg), error: (msg: string) => app.error(msg) };
+      const log = {
+        debug: (msg: string) => app.debug(msg),
+        error: (msg: string) => app.error(msg),
+      };
 
       // Discovery runs for the whole plugin lifetime, whatever the address
       // config: with an empty address it supplies the sync candidates, and

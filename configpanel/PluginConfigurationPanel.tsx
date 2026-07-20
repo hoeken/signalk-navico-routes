@@ -339,8 +339,8 @@ export default function PluginConfigurationPanel({ configuration, save }: PanelP
             onChange={(e) => setMfdAddress(e.target.value)}
           />
           <span style={S.hint}>
-            IP address or hostname of master Navico MFD.
-            Uploads must sync to master and then it propagates changes to the rest via UDB.
+            IP address or hostname of master Navico MFD. Uploads must sync to master and then it
+            propagates changes to the rest via UDB.
           </span>
         </div>
       </div>
