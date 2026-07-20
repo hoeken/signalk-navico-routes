@@ -14,7 +14,7 @@ hardware is needed — just the MFD and the SignalK server on the same network.
   chartplotter appear in SignalK's standard resources API
   (`/signalk/v2/api/resources/routes` and `/waypoints`), refreshed on a
   configurable schedule, so any SignalK app (Freeboard, etc.) can display them.
-- **Multi-MFD friendly.** Point the plugin at any one chartplotter; Navico's
+- **Multi-MFD friendly.** Point the plugin at the master chartplotter; Navico's
   own sync spreads uploads to the rest of the network.
 - **A webapp for sending routes the other way.** Pick routes from SignalK
   and push them to the chartplotter, or download backups and GPX exports —

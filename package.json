@@ -1,6 +1,6 @@
 {
   "name": "signalk-navico-routes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Synchronize routes and waypoints between Navico MFDs (B&G, Simrad, etc.) and SignalK",
   "displayName": "Navico Route Sync",
   "main": "dist/index.js",
@@ -31,7 +31,12 @@
   "signalk": {
     "appIcon": "logo.png",
     "displayName": "Navico Route Sync",
-    "screenshots": [],
+    "screenshots": [
+      "./docs/screenshots/webapp.png",
+      "./docs/screenshots/confirmation.png",
+      "./docs/screenshots/config.png",
+      "./docs/screenshots/export.png"
+    ],
     "recommends": [
       "signalk-navico-embedder"
     ]
