@@ -60,7 +60,9 @@
     "format:check": "prettier --check src test webapp configpanel",
     "ci": "npm run lint && npm run typecheck:webapp && npm run typecheck:configpanel && npm run test && npm run build",
     "prepare": "husky || true",
-    "prepublishOnly": "npm run ci"
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run ci",
+    "release": "git tag -d v$npm_package_version; git tag v$npm_package_version && git push && git push origin v$npm_package_version"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
