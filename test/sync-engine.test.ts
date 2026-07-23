@@ -474,6 +474,28 @@ describe('manual operations (webapp)', () => {
     await h.engine.stop();
   });
 
+  it('buildUsr uses a fresh synthetic serial per upload, applied to every record', async () => {
+    const h = harness();
+    const routes = new Map([['sk-route-1', FOREIGN_ROUTE]]);
+
+    const first = parseUsr(h.engine.buildUsr(routes).bytes);
+    const second = parseUsr(h.engine.buildUsr(routes).bytes);
+
+    // A fresh, non-zero serial each upload: the plotter tombstones the
+    // (unit, seq) pairs of deleted records, so a fixed serial would import
+    // once and then be silently dropped after the first upload+delete.
+    expect(first.serialNumber).toBeGreaterThan(0);
+    expect(second.serialNumber).not.toBe(first.serialNumber);
+
+    // Every record carries that serial — no native (MFD-serial) record is
+    // reused into the file, which the plotter fails to link on import.
+    for (const wp of first.waypoints) {
+      expect(wp.uid.unit).toBe(first.serialNumber);
+    }
+    expect(first.routes[0]!.uid.unit).toBe(first.serialNumber);
+    await h.engine.stop();
+  });
+
   it('buildUsr reports adjusted names', async () => {
     const h = harness();
     const longName = 'A ROUTE NAME FAR TOO LONG FOR ANY NAVICO DISPLAY';
