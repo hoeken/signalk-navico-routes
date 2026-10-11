@@ -1,0 +1,9 @@
+# Force LF line endings on checkout for all text files so Prettier's
+# endOfLine check passes on Windows runners (core.autocrlf=true there).
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.jpg binary
+*.gif binary
