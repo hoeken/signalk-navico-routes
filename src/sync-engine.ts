@@ -17,6 +17,7 @@
  * promise chain, so operations never overlap.
  */
 
+import { randomInt } from 'node:crypto';
 import { buildUsrDatabase, usrRouteToResource, usrWaypointToResource } from './mapper';
 import { parseUsr, serializeUsr } from './usr/codec';
 import type { UsrDatabase } from './usr/model';
@@ -90,9 +91,7 @@ export class SyncEngine {
   private pollTimer?: NodeJS.Timeout;
   private stopped = false;
   private mfdUnreachable = false;
-  /** Most recent successfully parsed MFD database (download or cache). */
-  private lastDb?: UsrDatabase;
-  /** Raw bytes behind lastDb, served for cached backups. */
+  /** Raw bytes of the most recent successful download, served for cached backups. */
   private lastBuf?: Buffer;
   /** Time of the last successful download from the MFD (not cache loads). */
   private lastSyncAt?: Date;
@@ -164,7 +163,6 @@ export class SyncEngine {
     }
     try {
       const db = parseUsr(buf);
-      this.lastDb = db;
       this.lastBuf = buf;
       const counts = this.mirror(db);
       this.deps.setStatus(
@@ -213,7 +211,6 @@ export class SyncEngine {
     const db = parseUsr(buf);
     this.reportReachable();
     await this.saveToCache(buf);
-    this.lastDb = db;
     this.lastBuf = buf;
     this.lastSyncAt = new Date();
     return { buf, counts: this.mirror(db) };
@@ -277,18 +274,34 @@ export class SyncEngine {
   /**
    * Build a USR file containing exactly the given SignalK routes (plus their
    * synthesized leg waypoints). Record identity comes from the persistent id
-   * map and, where possible, from the last downloaded database, so repeated
-   * builds of the same route reference the same uuids instead of minting new
-   * ones. The built routes are marked suppressed in the id map: once the file
+   * map (route uuids) and the deterministic leg-waypoint uuids derived from
+   * them, so repeated builds of the same route reference the same uuids instead
+   * of minting new ones. The built routes are marked suppressed in the id map:
+   * once the file
    * lands on the MFD, the mirror leaves them to their owning provider instead
    * of publishing a duplicate.
    */
   buildUsr(routes: Map<string, RouteResource>, now = new Date()): BuiltUsr {
     const nameAdjustments: NameAdjustment[] = [];
+    // Each upload uses a FRESH random synthetic serial number. Two reasons,
+    // both verified on a B&G Vulcan 7 (2026-07-23):
+    //  (1) never the MFD's own serial — the plotter then treats the records as
+    //      self-originated and fails to link route->waypoint on import
+    //      ("ROUTE BROKEN LINK / missing waypoints");
+    //  (2) never a serial reused from a previous upload — the plotter tombstones
+    //      the (unit, sequence) pairs of deleted records and silently drops any
+    //      re-uploaded record that reuses them, so a fixed synthetic serial works
+    //      once and then breaks after the first upload+delete. A fresh serial per
+    //      upload keeps every (unit, seq) pair unseen.
+    // `previous` is dropped so no native (MFD-serial) waypoint is reused into the
+    // otherwise-foreign file; record identity still comes from the id map, so an
+    // unchanged route re-uploaded under a new serial still dedupes by uuid.
+    const uploadSerial = randomInt(0x10000000, 0x7fffffff);
     const db = buildUsrDatabase({
       waypoints: new Map(),
       routes,
-      previous: this.lastDb,
+      previous: undefined,
+      serialNumber: uploadSerial,
       idMap: this.deps.idMap,
       now,
       onNameAdjusted: (type, original, adjusted) =>
