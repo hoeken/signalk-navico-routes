@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.1
+
+### Fixes
+
+- **Uploads now work on more chartplotters.** Each upload to the MFD now
+  uses a fresh, random serial number instead of the chartplotter's own one.
+  On some units (seen on a B&G Vulcan 7), reusing the MFD's serial made
+  uploaded routes import as "ROUTE BROKEN LINK / missing waypoints", or
+  silently never appear after a route had been deleted and re-sent. Thanks
+  to @johansolve for tracking this down
+  ([#1](https://github.com/hoeken/signalk-navico-routes/pull/1)).
+
 ## v1.0.0
 
 Initial release of **Navico Route Sync** — keep the routes and waypoints on

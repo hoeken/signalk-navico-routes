@@ -1,6 +1,6 @@
 {
   "name": "signalk-navico-routes",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Synchronize routes and waypoints between Navico MFDs (B&G, Simrad, etc.) and SignalK",
   "displayName": "Navico Route Sync",
   "main": "dist/index.js",
