@@ -16,6 +16,8 @@ hardware is needed — just the MFD and the SignalK server on the same network.
   configurable schedule, so any SignalK app (Freeboard, etc.) can display them.
 - **Multi-MFD friendly.** Point the plugin at the master chartplotter; Navico's
   own sync spreads uploads to the rest of the network.
+- **Send to MFD from Freeboard-SK.** Click a route on the chart and choose
+  _Send to MFD_.
 - **A webapp for sending routes the other way.** Pick routes from SignalK
   and push them to the chartplotter, or download backups and GPX exports —
   all from the SignalK admin UI. With [signalk-navico-embedder](http://npmjs.com/signalk-navico-embedder) you can manage the sync from the MFD itself.
@@ -29,14 +31,14 @@ automatically; you can also pin one by IP address.
 
 ## Configuration
 
-| Setting                 | Default | Description                                             |
-| ----------------------- | ------- | ------------------------------------------------------- |
+| Setting                 | Default | Description                                                                          |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------ |
 | `mfdAddress`            | —       | IP address or hostname of the chartplotter. Leave empty to auto-discover (see below) |
-| `syncFromMfd`           | `true`  | Enable the MFD → SignalK mirror                         |
-| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                          |
-| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD                  |
-| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints                      |
-| `pollIntervalSeconds`   | `600`   | How often to refresh from the MFD, in seconds (min 30; 0 turns polling off) |
+| `syncFromMfd`           | `true`  | Enable the MFD → SignalK mirror                                                      |
+| `syncRoutes`            | `true`  | Mirror MFD routes into SignalK                                                       |
+| `syncVisibleRoutesOnly` | `true`  | Skip routes that are hidden on the MFD                                               |
+| `syncWaypoints`         | `true`  | Mirror free-standing MFD waypoints                                                   |
+| `pollIntervalSeconds`   | `600`   | How often to refresh from the MFD, in seconds (min 30; 0 turns polling off)          |
 
 ### Auto-discovery
 
@@ -104,6 +106,24 @@ A few things worth knowing:
   GPX exports use it unless you renamed the route in the table.
 - The page has a day/night toggle and also follows your OS theme (or a
   `?mode=day` / `?mode=night` URL parameter).
+
+## Freeboard-SK
+
+With [Freeboard-SK](https://github.com/SignalK/freeboard-sk) 3.4 or later,
+the plugin adds **Send to MFD** to the menu of every route on the chart
+(click the route to open its popover). It opens a small window with the
+name the route will get on the chartplotter (up to 16 characters, editable)
+and sends that one route, just like _Send selected to MFD_ in the webapp.
+For a route that came from the chartplotter, the window tells you it is
+already there.
+
+- Freeboard picks up the menu entry when it loads. If it doesn't show up
+  after you enable the plugin, restart the SignalK server and reload
+  Freeboard.
+- Sending needs a SignalK user with read/write access (SignalK 2.35 or
+  later); on older servers it needs an admin login, like the webapp.
+- Uploads are additive here too: sending the same route twice makes two
+  copies on the chartplotter.
 
 ## Known limitations
 

@@ -345,6 +345,28 @@ describe('webapp api', () => {
     expect(routes.get('r-foreign')!.name).toBe('SAVU RUN');
   });
 
+  it('opens only POST /api/upload to read/write users where the server supports it', () => {
+    const registered: string[] = [];
+    const router: ApiRouter = {
+      get: (path) => registered.push(`admin GET ${path}`),
+      post: (path) => registered.push(`admin POST ${path}`),
+      access: (level) => ({
+        post: (path: string) => registered.push(`${level} POST ${path}`),
+      }),
+    };
+    registerApiRoutes(router, {
+      version: '1.2.3',
+      getEngine: () => undefined,
+      getDiscovered: () => [],
+      listRoutes: async () => ({}),
+      log: { debug: () => undefined, error: () => undefined },
+    });
+    expect(registered).toContain('readwrite POST /api/upload');
+    expect(registered.filter((r) => !r.startsWith('admin '))).toEqual([
+      'readwrite POST /api/upload',
+    ]);
+  });
+
   it('ApiError carries its HTTP status', () => {
     const err = new ApiError(418, 'teapot');
     expect(err.status).toBe(418);

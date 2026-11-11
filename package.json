@@ -16,6 +16,7 @@
     "signalk-webapp",
     "signalk-plugin-configurator",
     "signalk-category-navigation",
+    "signalk-category-plotter-extensions",
     "signalk",
     "navico",
     "b&g",
@@ -47,9 +48,10 @@
     "public"
   ],
   "scripts": {
-    "build": "tsc && npm run build:webapp && npm run build:configpanel",
+    "build": "tsc && npm run build:webapp && npm run build:freeboard && npm run build:configpanel",
     "generate:icons": "node scripts/generate-icons.mjs",
     "build:webapp": "esbuild webapp/src/app.tsx --bundle --minify --sourcemap --target=chrome69 --jsx=automatic --jsx-import-source=preact --outfile=public/app.js",
+    "build:freeboard": "esbuild webapp/src/freeboard/send.ts --bundle --minify --sourcemap --target=chrome69 --outfile=public/fb-send.js",
     "build:configpanel": "webpack",
     "typecheck:webapp": "tsc --noEmit -p webapp",
     "typecheck:configpanel": "tsc --noEmit -p configpanel",

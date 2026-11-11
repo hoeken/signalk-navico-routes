@@ -8,12 +8,14 @@
  * The provider is read-only: uploading a USR file only adds records on the
  * MFD, so automatic SignalK → MFD sync cannot work. Pushing resources to
  * the MFD is a manual, user-driven operation through the bundled webapp
- * (served at /signalk-navico-routes, API at /plugins/signalk-navico-routes).
+ * (served at /signalk-navico-routes, API at /plugins/signalk-navico-routes),
+ * or from a route's menu in Freeboard-SK (see freeboard.ts).
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MfdDiscovery } from './discovery';
+import { plotterExtensionProvider } from './freeboard';
 import { IdMap } from './id-map';
 import { FailoverMfdClient } from './mfd-client';
 import { ResourceStore } from './resource-store';
@@ -196,6 +198,9 @@ export = function createPlugin(app: SignalKApp): Plugin {
           },
         });
       }
+
+      // Adds "Send to MFD" to route menus in Freeboard-SK (3.4 and later).
+      app.registerResourceProvider(plotterExtensionProvider(pluginVersion()));
 
       engine.start();
       app.setPluginStatus(

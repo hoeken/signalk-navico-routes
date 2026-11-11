@@ -64,6 +64,23 @@ The API behind the webapp is mounted at `/plugins/signalk-navico-routes`:
 | `POST /api/export`                | Export selected SignalK routes as USR/GPX    |
 | `POST /api/upload`                | Upload selected routes to the MFD            |
 
+All endpoints need an admin login, except `POST /api/upload`, which is open
+to read/write users on SignalK 2.35 and later (`router.access`), so that
+_Send to MFD_ in Freeboard-SK works without admin rights.
+
+## Freeboard-SK extension
+
+`src/freeboard.ts` registers a read-only `plotterExtensions` resource
+provider holding a [Plotter Extensions](https://github.com/SignalK/freeboard-sk/blob/master/docs/api/plotter-extensions-api.md)
+manifest. It declares one action, _Send to MFD_, on routes, which opens
+`public/fb-send.html` as a window. The action is offered on mirrored routes
+too: Freeboard drops `$source` when it loads a route, so the manifest cannot
+filter on it. The window reads the route itself and refuses mirrored ones. The
+window's script (`webapp/src/freeboard/`, bundled by `npm run
+build:freeboard`) reads the route from the action's target, talks to
+Freeboard over the `plotterExt/1` postMessage bus, and posts to
+`/api/upload`.
+
 ## Building and testing
 
 ```

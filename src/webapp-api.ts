@@ -38,9 +38,16 @@ export interface ApiResponse {
   send(body: Buffer): void;
 }
 
+export type ApiHandler = (req: ApiRequest, res: ApiResponse) => void;
+
 export interface ApiRouter {
-  get(path: string, handler: (req: ApiRequest, res: ApiResponse) => void): void;
-  post(path: string, handler: (req: ApiRequest, res: ApiResponse) => void): void;
+  get(path: string, handler: ApiHandler): void;
+  post(path: string, handler: ApiHandler): void;
+  /**
+   * Opens a route up to non-admin users (SignalK ≥ 2.35). Routes registered
+   * directly on the router stay admin-only.
+   */
+  access?(level: 'readwrite' | 'readonly'): { post(path: string, handler: ApiHandler): unknown };
 }
 
 export interface WebappApiDeps {
@@ -174,7 +181,11 @@ export function registerApiRoutes(router: ApiRouter, deps: WebappApiDeps): void 
 
   // Push the selected SignalK routes to the MFD (additive: nothing on the
   // MFD is overwritten or deleted, so no prior sync or backup is needed).
-  router.post(
+  // Open to read/write users where the server supports it, so "Send to MFD"
+  // works from Freeboard-SK without an admin login; on older servers it
+  // stays admin-only like the rest of this API.
+  const readwrite = router.access ? router.access('readwrite') : router;
+  readwrite.post(
     '/api/upload',
     wrap(async (req, res) => {
       const routes = await resolveSelection(deps, req.body);

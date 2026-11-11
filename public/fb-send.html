@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" class="theme-day">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Send to MFD</title>
+    <link rel="stylesheet" href="app.css" />
+    <style>
+      body {
+        padding: 12px 14px;
+        background: var(--panel);
+      }
+      #what {
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      label {
+        display: block;
+        color: var(--text-dim);
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+      #name {
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+      }
+      .note {
+        color: var(--text-dim);
+        font-size: 13px;
+        margin: 10px 0 6px;
+      }
+      .actions .btn {
+        margin: 4px 0;
+      }
+      .message {
+        min-height: 1.4em;
+        margin: 8px 0 0;
+      }
+      .message-ok {
+        color: var(--ok);
+      }
+      .message-error {
+        color: var(--error);
+      }
+      .message-busy {
+        color: var(--busy);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="what">Connecting to Freeboard…</div>
+    <label for="name">Name on the MFD (max. 16 characters)</label>
+    <input id="name" type="text" autocomplete="off" spellcheck="false" disabled />
+    <p class="note">
+      The MFD adds the route as a new one: it never replaces an existing route, and an upload can't
+      be undone there.
+    </p>
+    <div class="actions">
+      <button id="send" type="button" class="btn btn-primary" disabled>Send to MFD</button>
+    </div>
+    <p id="message" class="message" role="status" aria-live="polite"></p>
+    <script src="fb-send.js"></script>
+  </body>
+</html>

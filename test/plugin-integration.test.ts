@@ -11,7 +11,15 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import createPlugin from '../src/index';
 import { latDegToMm, lonDegToMm } from '../src/usr/mercator';
-import type { Delta, Resource, ResourceProvider, SignalKApp, WaypointResource } from '../src/types';
+import { PLUGIN_ID } from '../src/types';
+import type {
+  Delta,
+  PlotterExtensionProvider,
+  Resource,
+  ResourceProvider,
+  SignalKApp,
+  WaypointResource,
+} from '../src/types';
 import { buildUsr, synthUuid } from './helpers/build-usr';
 
 const WP = {
@@ -37,6 +45,7 @@ describe('plugin integration', () => {
   let mfd: { buf: Buffer };
   let app: SignalKApp & {
     providers: Map<string, ResourceProvider>;
+    extensions: PlotterExtensionProvider[];
     deltas: Delta[];
   };
   let plugin: ReturnType<typeof createPlugin>;
@@ -61,9 +70,11 @@ describe('plugin integration', () => {
     const port = (server.address() as AddressInfo).port;
 
     const providers = new Map<string, ResourceProvider>();
+    const extensions: PlotterExtensionProvider[] = [];
     const deltas: Delta[] = [];
     app = {
       providers,
+      extensions,
       deltas,
       debug: () => undefined,
       error: () => undefined,
@@ -73,7 +84,13 @@ describe('plugin integration', () => {
       handleMessage: (_id, delta) => {
         deltas.push(delta);
       },
-      registerResourceProvider: (p) => providers.set(p.type, p),
+      registerResourceProvider: (p) => {
+        if (p.type === 'plotterExtensions') {
+          extensions.push(p);
+        } else {
+          providers.set(p.type, p);
+        }
+      },
     };
 
     plugin = createPlugin(app);
@@ -101,6 +118,16 @@ describe('plugin integration', () => {
     expect(resource.name).toBe('SAVUSAVU');
     expect(await waypoints.methods.getResource(id)).toEqual(resource);
     expect(await routes.methods.listResources({})).toEqual({});
+  });
+
+  it('offers the Freeboard-SK extension manifest', async () => {
+    expect(app.extensions).toHaveLength(1);
+    const manifests = await app.extensions[0]!.methods.listResources({});
+    expect(Object.keys(manifests)).toEqual([PLUGIN_ID]);
+    expect(manifests[PLUGIN_ID]).toMatchObject({
+      apiVersion: '1',
+      actions: [{ id: 'send-to-mfd' }],
+    });
   });
 
   it('rejects writes: the provider is a read-only mirror', async () => {

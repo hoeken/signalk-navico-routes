@@ -15,6 +15,8 @@ smoke-archive/
 # Webapp bundle (esbuild output; index.html and app.css are source)
 public/app.js
 public/app.js.map
+public/fb-send.js
+public/fb-send.js.map
 
 # Admin-UI config panel bundle (webpack module-federation output)
 public/remoteEntry.js*

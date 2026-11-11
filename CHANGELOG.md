@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **Send to MFD from Freeboard-SK.** With Freeboard-SK 3.4 or later, every
+  route on the chart gets a _Send to MFD_ entry in its popover. It opens a small window to check the name and
+  upload that route. Sending needs read/write access instead of an admin
+  login on SignalK 2.35 and later.
+
 ## v1.0.1
 
 ### Fixes

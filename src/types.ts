@@ -63,6 +63,17 @@ export interface ResourceProvider {
   methods: ResourceProviderMethods;
 }
 
+/** Provider for Freeboard-SK's `plotterExtensions` collection (see freeboard.ts). */
+export interface PlotterExtensionProvider {
+  type: 'plotterExtensions';
+  methods: {
+    listResources(params: Record<string, unknown>): Promise<Record<string, unknown>>;
+    getResource(id: string, property?: string): Promise<unknown>;
+    setResource(id: string, value: unknown): Promise<void>;
+    deleteResource(id: string): Promise<void>;
+  };
+}
+
 /** SignalK delta as emitted/consumed for resource updates. */
 export interface Delta {
   context?: string;
@@ -81,7 +92,7 @@ export interface SignalKApp {
   setPluginError(msg: string): void;
   getDataDirPath(): string;
   handleMessage(pluginId: string, delta: Delta, version?: string): void;
-  registerResourceProvider(provider: ResourceProvider): void;
+  registerResourceProvider(provider: ResourceProvider | PlotterExtensionProvider): void;
   /** Server-side resources API (reads across all providers); SignalK ≥ 2. */
   resourcesApi?: {
     listResources(
